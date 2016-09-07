@@ -100,7 +100,7 @@ we_int DlinkmqMqtt_ConnectNetWork(we_handle hDlinkmqMqttHandle)
 		DlinkmqMqtt_DestroyNetwork(hDlinkmqMqttHandle, FALSE);
 	}
 
-	ret = DlinkmqNetwork_Init(&pstMqtt->pstNetWork);
+	ret = DlinkmqNetwork_Init((we_handle *)(&pstMqtt->pstNetWork));
 
 	if (pstMqtt->pstNetWork != NULL) 
 	{

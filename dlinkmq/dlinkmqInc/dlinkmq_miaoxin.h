@@ -20,6 +20,10 @@
 #define MIAOXIN_CMD_ID_DOWN_BATTERY			8//电量值
 #define MIAOXIN_CMD_ID_DOWN_LOCATION		10//定位,区别于实时定位，这个只定位一次并返回数据
 #define MIAOXIN_CMD_ID_DOWN_SETTING			11//设置设备数据
+#define MIAOXIN_CMD_ID_DOWN_SETTING_LED		12//LED灯效报警时长
+#define MIAOXIN_CMD_ID_DOWN_SETTING_BATTERY	13//低电量报警值
+#define MIAOXIN_CMD_ID_DOWN_SETTING_UPLOAD	14//自动上报数据时间间隔
+#define MIAOXIN_CMD_ID_DOWN_SETTING_STEP	15//设备运动上报开关
 
 
 
