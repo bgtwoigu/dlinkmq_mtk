@@ -21,6 +21,7 @@
 #define DlinkMQ_ERROR_CODE_SOC_CONN         	3   //网络连接失败
 #define DlinkMQ_ERROR_CODE_DATA             	4   //数据异常
 #define DlinkMQ_ERROR_CODE_DISK_FULL		5   
+#define DlinkMQ_ERROR_CODE_GET_HOSTNAME         	6   //GETHOSTNAME失败
 
 
 #endif /* dlinkmq_error_h */

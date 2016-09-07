@@ -15,8 +15,13 @@
 #define MQTTAPP_SOCK_READ_BUFFER_LEN 2048
 //static Network* g_netWork = NULL;
 U8 g_user_apn[8] = {0};
+kal_uint32 account_id = 0;
+
+void *dlinkmq_med_malloc(size_t len);
+void dlinkmq_med_free(void *buf);
 
 static U8 MqttAppSockNotifyCb(void* inMsg);
+static S8 DlinkmqNetwork_GetHostByNameInt(const S8 *host,U8 *addr,U8 *addr_len,U32 dtacct_id, kal_int32 request_id);
 /*****************************************************************************
 * DESCRIPTION:根据当前的网络环境获取对应APN
 * PARAMETERS :void
@@ -253,9 +258,8 @@ void NewNetwork(Network* n  , PsIntFuncPtr soc_notify)
 	n->mqttread = mtk_read;
 	n->mqttwrite = mtk_write;
 	n->disconnect =  mtk_disconnect;
-	n->app_id = 0;
 	//g_netWork = n;
-	mmi_frm_set_protocol_event_handler(MSG_ID_APP_SOC_NOTIFY_IND, soc_notify, MMI_TRUE);
+	//mmi_frm_set_protocol_event_handler(MSG_ID_APP_SOC_NOTIFY_IND, soc_notify, MMI_TRUE);
 }
 
 static void MqttAppCloseAccount(Network* net_work)
@@ -264,8 +268,8 @@ static void MqttAppCloseAccount(Network* net_work)
 	{
 		
 		soc_close(net_work->my_socket);
-		cbm_deregister_app_id(net_work->app_id);
-		net_work->app_id = 0;
+		//cbm_deregister_app_id(net_work->app_id);
+		//account_id = 0;
 		net_work->my_socket = -1;
 		/*mmi_frm_clear_protocol_event_handler(MSG_ID_APP_SOC_GET_HOST_BY_NAME_IND, 
 			(PsIntFuncPtr)YxAppGetHostByNameIntCb);*/
@@ -321,7 +325,7 @@ __CONTINUE_READ:
     return 1;
 }*/
 
-static S8 MqttAppSocketConnect(Network *net_work, sockaddr_struct *address)
+static int MqttAppSocketConnect(Network *net_work, sockaddr_struct *address)
 {
 	int status;
 	status=soc_connect(net_work->my_socket, address);
@@ -331,17 +335,18 @@ static S8 MqttAppSocketConnect(Network *net_work, sockaddr_struct *address)
 	switch(status)
 	{
 	case SOC_SUCCESS:
+		return DlinkMQ_ERROR_CODE_SUCCESS;
 	case SOC_WOULDBLOCK:
 		//mmi_frm_set_protocol_event_handler(MSG_ID_APP_SOC_NOTIFY_IND, soc_notify, MMI_TRUE);
-		return 0;
+		return DlinkMQ_ERROR_CODE_WOULDBLOCK;
 	default:
 		MqttAppCloseSocket(net_work);
-		return 2;
+		return DlinkMQ_ERROR_CODE_SOC_CONN;
 	}
 }
 
 
-static S8 MqttAppTcpStartConnect(Network *net_work, const S8* host, U16 port, S8 apn)
+static int MqttAppTcpStartConnect(Network *net_work, const S8* host, U16 port, S8 apn)
 {
 
 	sockaddr_struct addr;               // connect 地址
@@ -350,8 +355,11 @@ static S8 MqttAppTcpStartConnect(Network *net_work, const S8* host, U16 port, S8
 	kal_bool  is_ip_valid = KAL_FALSE;
 
 	//getHostByName();
-	if(net_work->my_socket <0)
-		return -1;
+	if(net_work->my_socket <0
+		|| host == NULL)
+	{
+		return ret;
+	}
 	memset(&addr,0,sizeof(sockaddr_struct));
 	addr.sock_type = SOC_SOCK_STREAM;
 	if(apn == MAPN_WAP)    // cmwap 连接
@@ -362,27 +370,46 @@ static S8 MqttAppTcpStartConnect(Network *net_work, const S8* host, U16 port, S8
 	{
 		kal_char* host_name=NULL;
 		
-		host_name = OslMalloc(strlen(host) + 1);
+		host_name = DLINKMQ_MALLOC(strlen(host) + 1);
 		if(host_name==NULL)
 		{
 			MqttAppCloseSocket(net_work);
-			return 2;
+			return ret;
 		}
 		memset(host_name, 0x00, strlen(host) + 1);
 		strcpy(host_name, host);
 		if(soc_ip_check(host_name, addr.addr, &is_ip_valid) == KAL_FALSE)
 		{
-			//gethostbyname
+			
+			kal_uint8  buf[4]={0};
+			DLINKMQ_FREE(host_name);
+
+			ret = DlinkmqNetwork_GetHostByNameInt(host, buf, &addr_len, account_id, net_work->my_socket); 
+			if(ret == SOC_SUCCESS)             // success
+			{
+				memcpy(addr.addr, buf, 4);
+				addr.addr_len = addr_len;
+				addr.port = port;
+			}
+			else if(ret == SOC_WOULDBLOCK)// block
+			{
+				return DlinkMQ_ERROR_CODE_WOULDBLOCK;
+			}
+			else                                    // error
+			{
+				return DlinkMQ_ERROR_CODE_GET_HOSTNAME; //需要重连
+			}
+
 		}
 		else if(is_ip_valid == KAL_FALSE)  
 		{
-			OslMfree(host_name);
+			DLINKMQ_FREE(host_name);
 			MqttAppCloseSocket(net_work);
-			return 2;
+			return ret;
 		}
 		else
 		{
-			OslMfree(host_name);
+			DLINKMQ_FREE(host_name);
 			addr.addr_len = 4;
 			addr.port = port;
 		}
@@ -390,7 +417,7 @@ static S8 MqttAppTcpStartConnect(Network *net_work, const S8* host, U16 port, S8
 	return MqttAppSocketConnect(net_work, &addr);
 }
 
-kal_uint32 account_id = 0;
+
 int ConnectNetwork(Network* n, char* addr, int port)
 {
 	int rc = -1;
@@ -410,20 +437,21 @@ int ConnectNetwork(Network* n, char* addr, int port)
 	kal_prompt_trace(MOD_MQTT,"---soc_creat-account_id:%d",account_id);
 
 #else
-	if(account_id==0){
+	if(account_id==0)
+	{
 		
-	cbm_app_info_struct app_info;
-	S8 ret = 0;
-	S32 i;
-	User_Socket_GetApn();
-	memset(&app_info, 0, sizeof(app_info));
-	app_info.app_icon_id = 301;
-	app_info.app_str_id = 111;
-	app_info.app_type = 0;	 //DTCNT_APPTYPE_NONE 
-	ret = cbm_register_app_id_with_app_info(&app_info, &app_id);
-	i = User_Socket_GetAccProfId(g_user_apn, CBM_SIM_ID_SIM1);
-	cbm_hold_bearer(app_id);
-	account_id = cbm_encode_data_account_id(i, CBM_SIM_ID_SIM1, app_id, KAL_FALSE);
+		cbm_app_info_struct app_info;
+		S8 ret = 0;
+		S32 i;
+		User_Socket_GetApn();
+		memset(&app_info, 0, sizeof(app_info));
+		app_info.app_icon_id = 301;
+		app_info.app_str_id = 111;
+		app_info.app_type = 0;	 //DTCNT_APPTYPE_NONE 
+		ret = cbm_register_app_id_with_app_info(&app_info, &app_id);
+		i = User_Socket_GetAccProfId(g_user_apn, CBM_SIM_ID_SIM1);
+		cbm_hold_bearer(app_id);
+		account_id = cbm_encode_data_account_id(i, CBM_SIM_ID_SIM1, app_id, KAL_FALSE);
 	
 	}
 
@@ -454,8 +482,8 @@ int ConnectNetwork(Network* n, char* addr, int port)
 		}*/
         	if(soc_setsockopt(n->my_socket, SOC_NBIO, &val, sizeof(val)) < 0)
         	{
-			MqttAppCloseSocket(n);
-			return rc;
+				MqttAppCloseSocket(n);
+				return rc;
         	}
         	else
         	{   
@@ -463,58 +491,92 @@ int ConnectNetwork(Network* n, char* addr, int port)
             		if(soc_setsockopt(n->my_socket, SOC_ASYNC, &val, sizeof(val)) < 0)
             		{
                 		MqttAppCloseSocket(n);
-				return rc;
-            		}
-            		else// 开始连接过程
-            		{
+						return rc;
             		}
 
 				return MqttAppTcpStartConnect(n, addr, port, MAPN_NET);
         	}
-	} 
+	}  else {
+
+		rc = DlinkMQ_ERROR_CODE_SOC_CREAT;
+	}
 
 	return rc;
 		
 }
 
-//static int malloc_num=0;
-//static int med_malloc_num=0;
+void *DlinkMQTTMalloc(size_t len){
 
-/*
-void *MQTTMalloc(size_t len){
-	void * result = OslMalloc(len);
-	if(result){
-		memset(result,0,len);
-	}
-	//malloc_num++;
-	return result;
+	return dlinkmq_med_malloc(len);
 }
-void MQTTFree(void *buf){
-	OslMfree(buf);
-	//malloc_num--;
-	//printf("\nmalloc_num:%d",malloc_num);
-}
-*/
+void DlinkMQTTFree(void *buf){
 
-void *MQTTMalloc(size_t len){
-	//malloc_num++;
-	return mqtt_med_malloc(len);
+	dlinkmq_med_free(buf);
 }
-void MQTTFree(void *buf){
-	mqtt_med_free(buf);
-	//malloc_num--;
-	//printf("\nmalloc_num:%d",malloc_num);
-}
-void *mqtt_med_malloc(size_t len){
+
+void *dlinkmq_med_malloc(size_t len){
+
 	void * result = med_alloc_ext_mem(len);
 	if(result){
 		memset(result,0,len);
 	}
-	//med_malloc_num++;
 	return result;
 }
-void mqtt_med_free(void *buf){
-	med_free_ext_mem(&buf);
-	//med_malloc_num--;
-	//printf("\nmed_malloc_num:%d",med_malloc_num);
+void dlinkmq_med_free(void *buf){
+
+	if (buf != NULL)
+	{
+
+		med_free_ext_mem(&buf);
+	}
+	
+}
+
+
+
+we_int DlinkmqNetwork_Init(we_handle *phDlinkmqNetworkHandle)
+{
+	we_int ret = DlinkMQ_ERROR_CODE_FAIL;
+
+	Network *pstNet = (Network *)DLINKMQ_MALLOC(sizeof(Network));
+
+	if (pstNet == NULL) {
+
+		return ret;
+	}
+
+	
+	
+	*phDlinkmqNetworkHandle = pstNet;
+
+	ret = DlinkMQ_ERROR_CODE_SUCCESS;
+	return ret;
+}
+
+we_void DlinkmqNetwork_Destroy(we_handle hDlinkmqNetworkHandle)
+{
+	Network *pstNet = (Network *)hDlinkmqNetworkHandle;
+
+	if(pstNet != NULL) {
+
+		MqttAppCloseSocket(pstNet);
+		DLINKMQ_FREE(pstNet);
+	}
+}
+
+
+
+static S8 DlinkmqNetwork_GetHostByNameInt(const S8 *host,U8 *addr,U8 *addr_len,U32 dtacct_id, kal_int32 request_id)
+{
+	kal_int8 ret = 0;    
+
+	ret = soc_gethostbyname(KAL_FALSE, 
+		MOD_MQTT, 
+		request_id, 
+		host, 
+		(kal_uint8*)addr, 
+		(kal_uint8*)addr_len, 
+		0, 
+		dtacct_id);
+	return ret;
 }

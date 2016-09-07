@@ -18,6 +18,7 @@
 
 #include "soc_consts.h"
 #include "kal_general_types.h"
+#include "MQTTTrace.h"
 
 extern void get_mqtt_test(void);
 extern  void mqtt_app_sendmsg_to_task(msg_type iMsg);
@@ -25,7 +26,9 @@ extern void mqtt_cb_exec(MQTTAsyncCallbackFunc cb,int result);
 extern void cb_mqtt_service_init(int result,void *data);
 extern void mqtt_cb_exec_with_data(MQTTAsyncCallbackFunc cb,int result,void *data);
 extern int mqtt_service_start();
-extern Client c;
+//extern Client c;
+
+
 
 void NewMessageData(MessageData* md, MQTTString* aTopicName, MQTTMessage* aMessgage) {
     md->topicName = aTopicName;
@@ -651,7 +654,7 @@ static void sendEventFinish(int result){
     }
 
     cb = currentSendingEvent->cb;
-    MQTTFree(currentSendingEvent);
+    DLINKMQ_FREE(currentSendingEvent);
     currentSendingEvent = NULL;
 
 	if(cb){
@@ -704,7 +707,7 @@ static void asyncSendPacket(Client *c,int length,Timer *timer,MQTTAsyncCallbackF
 		*/
 		sendEventFinish(FAILURE);
     }
-    currentSendingEvent = (sendPacketEvent *)MQTTMalloc(sizeof(sendPacketEvent));
+    currentSendingEvent = (sendPacketEvent *)DLINKMQ_MALLOC(sizeof(sendPacketEvent));
     currentSendingEvent->cb = cb;
     currentSendingEvent->length = length;
     currentSendingEvent->timer = timer;
@@ -750,8 +753,8 @@ static void readEventFinish(void){
 	}
     cb = currentReadEvent->cb;
     result = currentReadEvent->result;
-    MQTTFree(currentReadEvent->timer);
-    MQTTFree(currentReadEvent);
+    DLINKMQ_FREE(currentReadEvent->timer);
+    DLINKMQ_FREE(currentReadEvent);
     currentReadEvent = NULL;
     currentReadStatus = readStatusReady;
     if (cb )
@@ -825,11 +828,11 @@ static void asyncRead(Client *c,unsigned char *buffer,int len,int timeout_ms,MQT
         }
         return;
     }
-    currentReadEvent = (readEvent *)MQTTMalloc(sizeof(readEvent));
+    currentReadEvent = (readEvent *)DLINKMQ_MALLOC(sizeof(readEvent));
     currentReadEvent->c = c;
     currentReadEvent->len = len;
     currentReadEvent->buffer = buffer;
-    currentReadEvent->timer = (Timer *)MQTTMalloc(sizeof(Timer));
+    currentReadEvent->timer = (Timer *)DLINKMQ_MALLOC(sizeof(Timer));
     currentReadEvent->result = 0;
     InitTimer(currentReadEvent->timer);
     countdown_ms(currentReadEvent->timer, timeout_ms);
@@ -868,8 +871,8 @@ static void decodeEventFinish(void){
 	//printf("\ndecode finish\n");
     cb = currentDecodeEvent->cb;
     result = currentDecodeEvent->len;
-    MQTTFree(currentDecodeEvent->timer);
-    MQTTFree(currentDecodeEvent);
+    DLINKMQ_FREE(currentDecodeEvent->timer);
+    DLINKMQ_FREE(currentDecodeEvent);
     currentDecodeEvent = NULL;
     currentReadStatus = readStatusReady;
 
@@ -888,14 +891,14 @@ static void asyncDecodePacket(Client *c, int* value, int timeout, MQTTAsyncCallb
         }
         return;
     }
-    currentDecodeEvent = (decodePacketEvent *)MQTTMalloc(sizeof(decodePacketEvent));
+    currentDecodeEvent = (decodePacketEvent *)DLINKMQ_MALLOC(sizeof(decodePacketEvent));
     
     *value = 0;
     currentDecodeEvent->len = 0;
     currentDecodeEvent->c = c;
     currentDecodeEvent->value = value;
     currentDecodeEvent->multiplier = 1;
-    currentDecodeEvent->timer = MQTTMalloc(sizeof(Timer));
+    currentDecodeEvent->timer = DLINKMQ_MALLOC(sizeof(Timer));
     InitTimer(currentDecodeEvent->timer);
     countdown(currentDecodeEvent->timer, timeout);
     currentDecodeEvent->cb = cb;
@@ -961,8 +964,8 @@ static void readPacketEventFinish(void){
     cb = currentReadPacketEvent->cb;
     result = currentReadPacketEvent->result;
 
-    MQTTFree(currentReadPacketEvent->header);
-    MQTTFree(currentReadPacketEvent);
+    DLINKMQ_FREE(currentReadPacketEvent->header);
+    DLINKMQ_FREE(currentReadPacketEvent);
     currentReadPacketEvent = NULL;
     if(cb){
         mqtt_cb_exec(cb,result);
@@ -1016,13 +1019,13 @@ void asyncReadPacket(Client *c,Timer *timer,MQTTAsyncCallbackFunc cb){
         return ;
     }
     memset(c->readbuf,0,c->readbuf_size);
-    currentReadPacketEvent = (readPacketEvent *)MQTTMalloc(sizeof(readPacketEvent));
+    currentReadPacketEvent = (readPacketEvent *)DLINKMQ_MALLOC(sizeof(readPacketEvent));
     currentReadPacketEvent->c = c;
     currentReadPacketEvent->timer = timer;
     currentReadPacketEvent->len = 1;
     currentReadPacketEvent->result = FAILURE;
     
-    currentReadPacketEvent->header = (MQTTHeader *)MQTTMalloc(sizeof(MQTTHeader));
+    currentReadPacketEvent->header = (MQTTHeader *)DLINKMQ_MALLOC(sizeof(MQTTHeader));
     currentReadPacketEvent->header->byte = 0;
     currentReadPacketEvent->rem_len = 0;
     currentReadPacketEvent->step = 1;
@@ -1102,12 +1105,14 @@ void asyncKeepAlive(Client *c,MQTTAsyncCallbackFunc cb){
         return;
     }
 	keepAliveClient = c;
-    keepAliveCB = cb;
+     keepAliveCB = cb;
 	kal_get_time(&ticks);  
 	currentTime_ms = kal_ticks_to_milli_secs(ticks);
 
 	sentInteval = currentTime_ms - lastSentTime_ms;
-	tmp = sentInteval - c->keepAliveInterval;
+	//tmp = sentInteval - c->keepAliveInterval;
+
+	tmp = sentInteval - 100;
 	
 	if(tmp >= 0){
 		shouldPing = 1;
@@ -1122,22 +1127,22 @@ void asyncKeepAlive(Client *c,MQTTAsyncCallbackFunc cb){
         Timer timer;
         InitTimer(&timer);
         countdown_ms(&timer, 1000);
-		//printf("\nwill ping client\n");
+		//mqtt_fmt_print("\nwill ping client\n");
         len = MQTTSerialize_pingreq(c->buf, c->buf_size);
         if (len <= 0) {
 			if (cb) {
-				//printf("\n- 2.5--01");
+				//mqtt_fmt_print("\n- 2.5--01");
                 mqtt_cb_exec(cbAsyncKeepAlive,0);
             }
             return;
 		}
-		//printf("\n- 2.5--04");
+		//mqtt_fmt_print("\n- 2.5--04");
 
-		//printf("\nping client");
+		mqtt_fmt_print("\nping client");
 		c->ping_outstanding = 1;
 		ping_timer_init(c->keepAliveInterval / 2);
 		asyncSendPacket(c, len, &timer, cbAsyncKeepAlive);
-		//printf("\n- 2.5--05");
+		//mqtt_fmt_print("\n- 2.5--05");
         return;
     }
 	//mqtt_fmt_print("\n skip ping,next ping time:%d",-tmp);
@@ -1170,7 +1175,7 @@ void cycleFinish(int ignored,void* data){
     }
     cb = currentCycle->cb;
     result = currentCycle->result;
-    MQTTFree(currentCycle);
+    DLINKMQ_FREE(currentCycle);
     currentCycle = NULL;
     if (cb)
     {
@@ -1209,9 +1214,9 @@ void cyclePacketTypeDispatch(int packet_type,void* data){
     if (!currentCycle) {
         return;
     }
-	mqtt_fmt_print("\nread packet:%d\n",packet_type);
+    //mqtt_fmt_print("\nread packet:%d\n",packet_type);
     len = 0;
-	mqtt_fmt_print("\nrrrrrrrrr:%x\n",currentCycle->c->readbuf[1]);
+    //mqtt_fmt_print("\nrrrrrrrrr:%x\n",currentCycle->c->readbuf[1]);
     currentCycle->packet_type = packet_type;
     switch (packet_type)
     {
@@ -1293,7 +1298,7 @@ void asyncCycle(Client* c, Timer* timer,MQTTAsyncCallbackFunc cb){
         mqtt_cb_exec(cb,FAILURE);
         return;
     }
-    currentCycle = (cycleEvent *)MQTTMalloc(sizeof(cycleEvent));
+    currentCycle = (cycleEvent *)DLINKMQ_MALLOC(sizeof(cycleEvent));
     currentCycle->c = c;
     currentCycle->timer = timer;
     currentCycle->cb = cb;
@@ -1317,7 +1322,7 @@ void waitFinish(int result){
     }
 
     cb = currentWaitEvent->cb;
-    MQTTFree(currentWaitEvent);
+    DLINKMQ_FREE(currentWaitEvent);
     currentWaitEvent = NULL;
     if(cb){
         mqtt_cb_exec(cb,result);
@@ -1352,7 +1357,7 @@ void asyncWaitFor(Client* c, int packet_type, Timer* timer,MQTTAsyncCallbackFunc
         }
         return;
     }
-    currentWaitEvent = (waitForEvent *)MQTTMalloc(sizeof(waitForEvent));
+    currentWaitEvent = (waitForEvent *)DLINKMQ_MALLOC(sizeof(waitForEvent));
     currentWaitEvent->c = c;
     currentWaitEvent->packet_type = packet_type;
     currentWaitEvent->timer = timer;
@@ -1379,8 +1384,8 @@ void MQTTYieldEventFinish(result){
         return;
     }
     cb = currentYieldEvent->cb;
-    MQTTFree(currentYieldEvent->timer);
-    MQTTFree(currentYieldEvent);
+    DLINKMQ_FREE(currentYieldEvent->timer);
+    DLINKMQ_FREE(currentYieldEvent);
     currentYieldEvent = NULL;
     if (cb) {
         mqtt_cb_exec(cb,result);
@@ -1415,10 +1420,10 @@ void MQTTAsyncYield(Client* c, int timeout_ms,MQTTAsyncCallbackFunc cb){
         return;
     }
 
-    currentYieldEvent = (MQTTYieldEvent *)MQTTMalloc(sizeof(MQTTYieldEvent));
+    currentYieldEvent = (MQTTYieldEvent *)DLINKMQ_MALLOC(sizeof(MQTTYieldEvent));
     currentYieldEvent->c = c;
     currentYieldEvent->cb = cb;
-    currentYieldEvent->timer = (Timer *)MQTTMalloc(sizeof(Timer));
+    currentYieldEvent->timer = (Timer *)DLINKMQ_MALLOC(sizeof(Timer));
     InitTimer(currentYieldEvent->timer);
     countdown_ms(currentYieldEvent->timer, timeout_ms);
     //MQTTYieldEventDoNext(SUCCESS);
@@ -1446,8 +1451,8 @@ void MQTTAsyncConnectFinish(int result){
         currentConnectAction->c->isconnected = 1;
     }
     cb = currentConnectAction->cb;
-    MQTTFree(currentConnectAction->connectTimer);
-    MQTTFree(currentConnectAction);
+    DLINKMQ_FREE(currentConnectAction->connectTimer);
+    DLINKMQ_FREE(currentConnectAction);
     currentConnectAction = NULL;
     if (cb) {
         mqtt_cb_exec(cb,result);
@@ -1494,11 +1499,11 @@ void MQTTAsyncConnect(Client *c, MQTTPacket_connectData* options,MQTTAsyncCallba
         return;
 	}
     if (currentConnectAction ) {
-		MQTTFree(currentConnectAction->connectTimer);
-		MQTTFree(currentConnectAction);
+		DLINKMQ_FREE(currentConnectAction->connectTimer);
+		DLINKMQ_FREE(currentConnectAction);
 		currentConnectAction = NULL;
 		if(currentSendingEvent){
-			MQTTFree(currentSendingEvent);
+			DLINKMQ_FREE(currentSendingEvent);
 			currentSendingEvent = NULL;
 		}
     }
@@ -1515,8 +1520,8 @@ void MQTTAsyncConnect(Client *c, MQTTPacket_connectData* options,MQTTAsyncCallba
         }
         return;
     }
-    currentConnectAction = (MQTTConnectAction *)MQTTMalloc(sizeof(MQTTConnectAction));
-    currentConnectAction->connectTimer = (Timer *)MQTTMalloc(sizeof(Timer));
+    currentConnectAction = (MQTTConnectAction *)DLINKMQ_MALLOC(sizeof(MQTTConnectAction));
+    currentConnectAction->connectTimer = (Timer *)DLINKMQ_MALLOC(sizeof(Timer));
     InitTimer(currentConnectAction->connectTimer);
     countdown_ms(currentConnectAction->connectTimer, c->command_timeout_ms);
     currentConnectAction->c = c;
@@ -1542,8 +1547,8 @@ void MQTTAsyncSubscribeFinish(int result){
         return;
     }
     cb = currentSubscribeAction->cb;
-    MQTTFree(currentSubscribeAction->subscribeTimer);
-    MQTTFree(currentSubscribeAction);
+    DLINKMQ_FREE(currentSubscribeAction->subscribeTimer);
+    DLINKMQ_FREE(currentSubscribeAction);
     currentSubscribeAction = NULL;
     if (cb) {
         mqtt_cb_exec(cb,result);
@@ -1609,8 +1614,8 @@ void MQTTAsyncSubscribe(Client* c, const char* topicFilter, enum QoS qos, messag
     }
     
     topic.cstring = (char *)topicFilter;
-    currentSubscribeAction = (MQTTSubscribeAction *)MQTTMalloc(sizeof(MQTTSubscribeAction));
-    currentSubscribeAction->subscribeTimer = (Timer *)MQTTMalloc(sizeof(Timer));
+    currentSubscribeAction = (MQTTSubscribeAction *)DLINKMQ_MALLOC(sizeof(MQTTSubscribeAction));
+    currentSubscribeAction->subscribeTimer = (Timer *)DLINKMQ_MALLOC(sizeof(Timer));
     currentSubscribeAction->topicFilter = topicFilter;
     currentSubscribeAction->messageHandler = messageHandler;
 	currentSubscribeAction->c = c;
@@ -1646,8 +1651,8 @@ void MQTTAsyncUnsubscribeFinish(int result){
         return;
     }
     cb = currentUnsubscribeAction->cb;
-    MQTTFree(currentUnsubscribeAction->unsubscribeTimer);
-    MQTTFree(currentUnsubscribeAction);
+    DLINKMQ_FREE(currentUnsubscribeAction->unsubscribeTimer);
+    DLINKMQ_FREE(currentUnsubscribeAction);
     currentUnsubscribeAction = NULL;
     if (cb) {
         mqtt_cb_exec(cb,result);
@@ -1695,8 +1700,8 @@ void MQTTAsyncUnsubscribe(Client* c, const char* topicFilter,MQTTAsyncCallbackFu
     }
     
     topic.cstring = (char *)topicFilter;
-    currentUnsubscribeAction = (MQTTUnsubscribeAction *)MQTTMalloc(sizeof(MQTTUnsubscribeAction));
-    currentUnsubscribeAction->unsubscribeTimer = (Timer *)MQTTMalloc(sizeof(Timer));
+    currentUnsubscribeAction = (MQTTUnsubscribeAction *)DLINKMQ_MALLOC(sizeof(MQTTUnsubscribeAction));
+    currentUnsubscribeAction->unsubscribeTimer = (Timer *)DLINKMQ_MALLOC(sizeof(Timer));
     currentUnsubscribeAction->c = c;
     InitTimer(currentUnsubscribeAction->unsubscribeTimer);
     countdown_ms(currentUnsubscribeAction->unsubscribeTimer, c->command_timeout_ms);
@@ -1730,8 +1735,8 @@ void MQTTAsyncPublishFinish(int result){
     }
     cb = currentPublishAction->cb;
 	msg=currentPublishAction->message;
-    MQTTFree(currentPublishAction->publishTimer);
-    MQTTFree(currentPublishAction);
+    DLINKMQ_FREE(currentPublishAction->publishTimer);
+    DLINKMQ_FREE(currentPublishAction);
     currentPublishAction = NULL;
     if (cb) {
         //mqtt_cb_exec(cb,result);
@@ -1807,9 +1812,9 @@ void MQTTAsyncPublish(Client* c, const char* topicName, MQTTMessage* message,MQT
         }
         return;
     }
-    currentPublishAction = (MQTTPublishAction *)MQTTMalloc(sizeof(MQTTPublishAction));
+    currentPublishAction = (MQTTPublishAction *)DLINKMQ_MALLOC(sizeof(MQTTPublishAction));
     currentPublishAction->message = message;
-    currentPublishAction->publishTimer = (Timer *)MQTTMalloc(sizeof(Timer));
+    currentPublishAction->publishTimer = (Timer *)DLINKMQ_MALLOC(sizeof(Timer));
 	currentPublishAction->c = c;
 	currentPublishAction->cb = cb;
     InitTimer(currentPublishAction->publishTimer);
@@ -1833,7 +1838,7 @@ void MQTTAsyncDisconnectSendPacketCheck(int result,void *data){
     }
     currentDisconnectAction->c->isconnected = 0;
     cb = currentDisconnectAction->cb;
-    MQTTFree(currentDisconnectAction);
+    DLINKMQ_FREE(currentDisconnectAction);
     currentDisconnectAction = NULL;
     if (cb) {
         mqtt_cb_exec(cb,SUCCESS);
@@ -1856,7 +1861,7 @@ void MQTTAsyncDisconnect(Client *c,MQTTAsyncCallbackFunc cb){
     InitTimer(&timer);
     countdown_ms(&timer, c->command_timeout_ms);
     if (len > 0){
-		currentDisconnectAction = (MQTTDisconnectAction *)MQTTMalloc(sizeof(MQTTDisconnectAction));
+		currentDisconnectAction = (MQTTDisconnectAction *)DLINKMQ_MALLOC(sizeof(MQTTDisconnectAction));
 		currentDisconnectAction->c = c;
 		currentDisconnectAction->cb = cb;
         asyncSendPacket(c, len, &timer, MQTTAsyncDisconnectSendPacketCheck);
@@ -1869,3 +1874,33 @@ void MQTTAsyncDisconnect(Client *c,MQTTAsyncCallbackFunc cb){
 
 
 
+we_int DlinkmqClient_Init(we_handle *phDlinkmqClientHandle)
+{
+	we_int ret = DlinkMQ_ERROR_CODE_FAIL;
+	we_int netRet = DlinkMQ_ERROR_CODE_FAIL;
+
+	Client *pstClient = (Client *)DLINKMQ_MALLOC(sizeof(Client));
+
+	if (pstClient == NULL) {
+
+		return ret;
+	}
+
+
+	ret = DlinkMQ_ERROR_CODE_SUCCESS;
+
+	*phDlinkmqClientHandle = pstClient;
+
+
+	return ret;
+}
+
+we_void DlinkmqClient_Destroy(we_handle hDlinkmqClientHandle)
+{
+	Client *pstClient = (Client *)hDlinkmqClientHandle;
+
+	if(pstClient != NULL) {
+
+		DLINKMQ_FREE(pstClient);
+	}
+}

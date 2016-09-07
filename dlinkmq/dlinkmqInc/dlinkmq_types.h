@@ -9,13 +9,58 @@
 #ifndef dlinkmq_types_h
 #define dlinkmq_types_h
 
-typedef unsigned char  we_uint8;
-typedef unsigned short we_uint16;
-typedef unsigned int   we_uint32;
-typedef char  we_int8;
+#ifndef TRUE
+#define TRUE          1       /* TRUE  :  Integer value 1 */
+#endif
+
+#ifndef FALSE
+#define FALSE         0       /* FALSE :  Integer value 0 */
+#endif
+
+
+#ifndef we_uint8
+typedef  unsigned char we_uint8;
+#endif
+
+#ifndef we_uint16
+typedef  unsigned short  we_uint16;
+#endif
+
+#ifndef we_uint32
+ typedef  unsigned int  we_uint32;
+#endif
+
+#ifndef we_char
+typedef char we_char;
+#endif
+
+#ifndef we_int8
+typedef char we_int8;
+#endif
+
+#ifndef we_int16
 typedef short we_int16;
-typedef int   we_int32;
-typedef void   we_void;
+#endif
+
+#ifndef we_int32
+typedef int we_int32;
+#endif
+
+#ifndef we_int
+typedef int we_int;
+#endif
+
+#ifndef we_void
+typedef  void  we_void;
+#endif
+
+#ifndef we_handle
+typedef  void *             we_handle;
+#endif
+
+#ifndef we_bool
+typedef  unsigned char             we_bool;
+#endif
 
 
 enum dlinkmq_data_type{

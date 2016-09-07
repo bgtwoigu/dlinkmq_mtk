@@ -72,13 +72,17 @@ typedef struct Network Network;
 struct Network
 {
 	kal_int8 my_socket;
-	U8 app_id;
 	int (*mqttread) (Network*, unsigned char*, int, int);
 	int (*mqttwrite) (Network*, unsigned char*, int, int);
 	void (*disconnect) (Network*);
 	void (*readStatusHandler)(networkStatus status);
     void (*writeStatusHandler)(networkStatus status);
 };
+
+
+we_int DlinkmqNetwork_Init(we_handle *phDlinkmqNetworkHandle);
+
+we_void DlinkmqNetwork_Destroy(we_handle hDlinkmqNetworkHandle);
 
 char expired(Timer* timer);
 void countdown_ms(Timer* timer, unsigned int);
@@ -91,8 +95,18 @@ int mtk_write(Network* n, unsigned char* buffer, int len, int timeout_ms);
 void mtk_disconnect(Network* n);
 void NewNetwork(Network* n  , PsIntFuncPtr soc_notify);
 int ConnectNetwork(Network* n, char*addr, int port);
-void *MQTTMalloc(size_t);
-void MQTTFree(void *);
-void *mqtt_med_malloc(size_t len);
-void mqtt_med_free(void *buf);
+void *DlinkMQTTMalloc(size_t len);
+void DlinkMQTTFree(void *buf);
+
+#define DLINKMQ_MALLOC(Param)       DlinkMQTTMalloc(Param)
+
+#define DLINKMQ_FREE(param)  \
+{\
+	if(param != NULL)\
+{\
+	DlinkMQTTFree(param);\
+	param = NULL;\
+}\
+}
+
 #endif

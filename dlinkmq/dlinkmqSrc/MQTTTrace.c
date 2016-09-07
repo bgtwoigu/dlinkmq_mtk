@@ -216,6 +216,7 @@ void mqtt_fmt_print(char *format, ...)
 		#ifdef __MTK_TARGET__
 			kal_prompt_trace(MOD_MQTTTRACE, g_trace_buf);
 		#else 
+			kal_prompt_trace(MOD_MQTTTRACE, g_trace_buf);
 			kal_printf("\n%s", g_trace_buf);
 		#endif 
 	}while(0);

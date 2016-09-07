@@ -543,7 +543,7 @@ void on_receive_init(we_int32 err_code){
 	//设备初始化成功后
 	if(err_code==0 && uploadTimer==NULL){
 		//初始化miaoxin_settings
-		miaoxin_setting_init();
+		//miaoxin_setting_init();
 
 		//设timer定时上报数据
 		//uploadTimer=kal_create_timer("uploadTimer");

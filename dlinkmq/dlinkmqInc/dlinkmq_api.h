@@ -100,7 +100,7 @@ typedef void (*dlinkmq_ext_callback) (we_int32 err_code, void* data);
 	参数无误返回DlinkMQ_ERROR_CODE_SUCCESS
  
  -------------------------------------------------*/
-we_int32 dlinkmq_init_device_info(dlinkmq_device_info *device_info, dlinkmq_on_receive *pFun_cb);
+we_int32 dlinkmq_init_device_info(dlinkmq_device_info *device_info, dlinkmq_on_receive *fun_cb);
 
 
 /* -------------------------------------------------

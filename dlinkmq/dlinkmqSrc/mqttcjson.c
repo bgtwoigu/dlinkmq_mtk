@@ -44,8 +44,8 @@ static int cJSON_strcasecmp(const char *s1,const char *s2)
 	return tolower(*(const unsigned char *)s1) - tolower(*(const unsigned char *)s2);
 }
 
-static void *(*cJSON_malloc)(size_t sz) = mqtt_med_malloc;
-static void (*cJSON_free)(void *ptr) = mqtt_med_free;
+static void *(*cJSON_malloc)(size_t sz) = DlinkMQTTMalloc;
+static void (*cJSON_free)(void *ptr) = DlinkMQTTFree;
 
 static char* cJSON_strdup(const char* str)
 {
@@ -61,13 +61,13 @@ static char* cJSON_strdup(const char* str)
 void cJSON_InitHooks(cJSON_Hooks* hooks)
 {
     if (!hooks) { /* Reset hooks */
-        cJSON_malloc = mqtt_med_malloc;
-        cJSON_free = mqtt_med_free;
+        cJSON_malloc = DlinkMQTTMalloc;
+        cJSON_free = DlinkMQTTFree;
         return;
     }
 
-	cJSON_malloc = (hooks->malloc_fn)?hooks->malloc_fn:mqtt_med_malloc;
-	cJSON_free	 = (hooks->free_fn)?hooks->free_fn:mqtt_med_free;
+	cJSON_malloc = (hooks->malloc_fn)?hooks->malloc_fn:DlinkMQTTMalloc;
+	cJSON_free	 = (hooks->free_fn)?hooks->free_fn:DlinkMQTTFree;
 }
 
 /* Internal constructor. */

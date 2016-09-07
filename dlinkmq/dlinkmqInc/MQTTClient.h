@@ -19,9 +19,9 @@
 
 #include "MQTTPacket.h"
 #include "MQTTConnect.h"
-#include "stdio.h"
 #include "MQTTMTK.h" //Platform specific implementation header file
 #include "dlinkmq_api.h"
+#include "dlinkmq_utils.h"
 
 #define MAX_PACKET_ID 65535
 #define MAX_MESSAGE_HANDLERS 5
@@ -30,7 +30,17 @@ enum QoS { QOS0, QOS1, QOS2 };
 
 // all failure return codes must be negative
 enum returnCode { BUFFER_OVERFLOW = -2, FAILURE = -1, SUCCESS = 0 };
-enum mqttStatus { MQTT_STATUS_INIT = 0, MQTT_STATUS_INITING, MQTT_STATUS_CONN, MQTT_STATUS_CONNING, MQTT_STATUS_RECONN, MQTT_STATUS_SUB, MQTT_STATUS_SUBING, MQTT_STATUS_RUN};
+enum mqttStatus {
+	MQTT_STATUS_INIT = 0, 
+	MQTT_STATUS_INITING, 
+	MQTT_STATUS_CONN,
+	MQTT_STATUS_CONNING, 
+	MQTT_STATUS_RECONN,
+	MQTT_STATUS_SUB, 
+	MQTT_STATUS_SUBING, 
+	MQTT_STATUS_DESTROY,
+	MQTT_STATUS_RUN
+};
 
 void NewTimer(Timer*);
 
@@ -72,12 +82,9 @@ void setDefaultMessageHandler(Client*, messageHandler);
 void MQTTClient(Client*, Network*, unsigned int, unsigned char*, size_t, unsigned char*, size_t);
 
 struct Client {
-    char server[40];
-    int port;
-    char clientid[40];
-    char username[40];
-    char password[40];
-    int mqttstatus;
+
+// 	U8  app_id;
+// 	U32	nwt_account_id; 
 	
     unsigned int next_packetid;
     unsigned int command_timeout_ms;
@@ -104,7 +111,12 @@ struct Client {
 
 //#pragma mark - async method
 
-typedef void(*MQTTAsyncCallbackFunc)(int result, void * data);
+
+we_int DlinkmqClient_Init(we_handle *phDlinkmqClientHandle);
+
+we_void DlinkmqClient_Destroy(we_handle hDlinkmqClientHandle);
+
+
 
 void MQTTAsyncConnect (Client*, MQTTPacket_connectData*,MQTTAsyncCallbackFunc cb);
 void MQTTAsyncPublish (Client*, const char*, MQTTMessage*,MQTTAsyncCallbackFunc cb);
