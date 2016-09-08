@@ -146,14 +146,14 @@ stack_timer_status_type dlinkmq_get_httpconn_timer_status()
 void mqtt_cb_exec_with_data(MQTTAsyncCallbackFunc cb,int result,void *data){
 	ilm_struct *msg = NULL;
 	mqtt_cb_exec_msg *cb_msg = construct_local_para(sizeof(mqtt_cb_exec_msg), TD_CTRL);
-	msg = allocate_ilm(MOD_MQTT);
+	msg = allocate_ilm(stack_get_active_module_id());
 	ASSERT(msg);
 	ASSERT(cb_msg);
 	cb_msg->cb = cb;
 	cb_msg->result = result;
 	cb_msg->data = data;
 	msg->dest_mod_id = MOD_MQTT;
-	msg->src_mod_id = MOD_MQTT;
+	msg->src_mod_id = stack_get_active_module_id();
 	msg->local_para_ptr = (local_para_struct *)cb_msg;
 	msg->msg_id = MSG_ID_MQTT_CB_EXEC;
 	msg->peer_buff_ptr = NULL;

@@ -188,6 +188,7 @@ we_int DlinkmqMqtt_SockNotifyInd(we_handle hDlinkmqMqttHandle, we_void *pvMsg)
 	we_int ret = DlinkMQ_ERROR_CODE_SUCCESS;
 	app_soc_notify_ind_struct *soc_notify = (app_soc_notify_ind_struct*) pvMsg;
 	St_DlinkmqMqtt *pstMqtt = (St_DlinkmqMqtt *)hDlinkmqMqttHandle;
+	we_int iResult  = DlinkMQ_ERROR_CODE_FAIL;
 
 
 	if(soc_notify == NULL
@@ -195,6 +196,8 @@ we_int DlinkmqMqtt_SockNotifyInd(we_handle hDlinkmqMqttHandle, we_void *pvMsg)
 	{
 		return DlinkMQ_ERROR_CODE_FAIL;
 	}
+
+	iResult = soc_notify->result;
 
 	mqtt_fmt_print("---n_for_mqtt soc_notify->event_type:%d",soc_notify->event_type);
 
@@ -226,9 +229,18 @@ we_int DlinkmqMqtt_SockNotifyInd(we_handle hDlinkmqMqttHandle, we_void *pvMsg)
 		break;
 	case SOC_CONNECT:
 		{
-			dlinkmq_httpconn_timer(0);
-			pstMqtt->mqttStatus = MQTT_STATUS_CONN;
-			DlinkmqMqtt_ServiceInit(hDlinkmqMqttHandle);
+			if (iResult == KAL_TRUE) 
+			{
+				mqtt_fmt_print("\r\n---n_for_mqtt -SOC_CONNECT success \n");
+				dlinkmq_httpconn_timer(0);
+				pstMqtt->mqttStatus = MQTT_STATUS_CONN;
+				DlinkmqMqtt_ServiceInit(hDlinkmqMqttHandle);
+			} 
+			else 
+			{
+				mqtt_fmt_print("\r\n---n_for_mqtt -SOC_CONNECT failed reconnect \n");
+				DlinkmqMqtt_DestroyNetwork(hDlinkmqMqttHandle,TRUE);
+			}
 			break;
 		}
 

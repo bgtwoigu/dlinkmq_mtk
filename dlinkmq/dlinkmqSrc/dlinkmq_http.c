@@ -164,6 +164,7 @@ we_int DlinkmqHttp_SockNotifyInd(we_handle hDlinkmqHttpHandle, we_void *pvMsg)
 	we_int ret = DlinkMQ_ERROR_CODE_SUCCESS;
 	app_soc_notify_ind_struct *soc_notify = (app_soc_notify_ind_struct*) pvMsg;
 	St_DlinkmqHttp *pstHttp = (St_DlinkmqHttp *)hDlinkmqHttpHandle;
+	we_int iResult  = DlinkMQ_ERROR_CODE_FAIL;
 
 
 	if(soc_notify == NULL
@@ -171,6 +172,8 @@ we_int DlinkmqHttp_SockNotifyInd(we_handle hDlinkmqHttpHandle, we_void *pvMsg)
 	{
 		return DlinkMQ_ERROR_CODE_FAIL;
 	}
+
+	iResult = soc_notify->result;
 
 	mqtt_fmt_print("---n_for_http soc_notify->event_type:%d",soc_notify->event_type);
 
@@ -196,25 +199,36 @@ we_int DlinkmqHttp_SockNotifyInd(we_handle hDlinkmqHttpHandle, we_void *pvMsg)
 			break;
 		case SOC_CONNECT:
 		{
-			//初始化时需要回调，然后连接MQTT
-// 			if(g_dmq_client.mqttstatus==MQTT_STATUS_INIT){
-// 				mqtt_cb_exec(cb_mqtt_service_init,SUCCESS);
-// 			}
-			dlinkmq_device_info *pstDinfo = DlinkmqMgr_GetDeviceInfo(g_pstDlinkmqMgr);
 
-			dlinkmq_httpconn_timer(0);
-			if (pstDinfo != NULL)
+			if (iResult == KAL_TRUE) 
 			{
-				we_char *pJsonData = NULL;
-				DlinkmqHttp_GetHttpJson(pstDinfo->product_id, pstDinfo->device_id, pstDinfo->product_secret, &pJsonData);
+				
+				dlinkmq_device_info *pstDinfo = DlinkmqMgr_GetDeviceInfo(g_pstDlinkmqMgr);
 
-				if (pJsonData != NULL)
+				dlinkmq_httpconn_timer(0);
+
+				mqtt_fmt_print("\r\n---n_for_http -SOC_CONNECT success \n");
+				if (pstDinfo != NULL)
 				{
-					ret = DlinkmqHttp_PostJsonToSever(hDlinkmqHttpHandle, pJsonData);
+					we_char *pJsonData = NULL;
+					DlinkmqHttp_GetHttpJson(pstDinfo->product_id, pstDinfo->device_id, pstDinfo->product_secret, &pJsonData);
 
-					DLINKMQ_FREE(pJsonData);
+					if (pJsonData != NULL)
+					{
+						ret = DlinkmqHttp_PostJsonToSever(hDlinkmqHttpHandle, pJsonData);
+
+						DLINKMQ_FREE(pJsonData);
+					}
 				}
+			} 
+			else 
+			{
+				mqtt_fmt_print("\r\n---n_for_http -SOC_CONNECT failed reconnect \n");
+				DlinkmqHttp_DestroyNetwork(hDlinkmqHttpHandle,TRUE);
 			}
+
+			
+			
 			break;
 		}
 
