@@ -505,13 +505,25 @@ int ConnectNetwork(Network* n, char* addr, int port)
 		
 }
 
+int DlinkMQTTMalloc_num = 0;
 void *DlinkMQTTMalloc(size_t len){
 
-	return dlinkmq_med_malloc(len);
+	void * result = med_alloc_ext_mem(len);
+	if(result){
+		memset(result,0,len);
+		DlinkMQTTMalloc_num++;
+	}
+	return result;
 }
 void DlinkMQTTFree(void *buf){
 
-	dlinkmq_med_free(buf);
+	if (buf != NULL)
+	{
+
+		med_free_ext_mem(&buf);
+		DlinkMQTTMalloc_num--;
+		kal_prompt_trace(MOD_MQTT,"---DlinkMQTTMalloc_num= %d",DlinkMQTTMalloc_num);
+	}
 }
 
 void *dlinkmq_med_malloc(size_t len){

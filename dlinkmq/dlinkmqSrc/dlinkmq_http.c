@@ -65,7 +65,8 @@ we_int DlinkmqHttp_Init(we_handle *phDlinkmqHttpHandle)
 
 	DlinkmqMsg_RegisterProcess(g_pstDlinkmqMsgHandle, E_MQ_MSG_MODULEID_HTTP, DlinkmqHttp_Process, (we_handle)pstHttp);
 
-	
+
+	ret = DlinkMQ_ERROR_CODE_SUCCESS;
 	*phDlinkmqHttpHandle = pstHttp;
 
 
@@ -79,6 +80,8 @@ we_int DlinkmqHttp_ConnectNetWork(we_handle hDlinkmqHttpHandle)
 
 	St_DlinkmqHttp *pstHttp = (St_DlinkmqHttp *)hDlinkmqHttpHandle;
 
+	mqtt_fmt_print("---DlinkmqHttp_ConnectNetWork start");
+
 	if (pstHttp == NULL)
 	{
 		return ret;
@@ -86,10 +89,16 @@ we_int DlinkmqHttp_ConnectNetWork(we_handle hDlinkmqHttpHandle)
 
 	if(pstHttp->pstNetWork != NULL) //之前连接还未销毁
 	{
+		mqtt_fmt_print("---DlinkmqHttp_ConnectNetWork before DlinkmqHttp_DestroyNetwork");
 		DlinkmqHttp_DestroyNetwork(hDlinkmqHttpHandle, FALSE);
 	}
 
+
+	mqtt_fmt_print("---DlinkmqHttp_ConnectNetWork before DlinkmqNetwork_Init");
+
 	ret = DlinkmqNetwork_Init((we_handle *)(&pstHttp->pstNetWork));
+
+	mqtt_fmt_print("---DlinkmqHttp_ConnectNetWork after DlinkmqNetwork_Init ret=%d", ret);
 
 	if (pstHttp->pstNetWork != NULL) 
 	{
@@ -100,7 +109,10 @@ we_int DlinkmqHttp_ConnectNetWork(we_handle hDlinkmqHttpHandle)
 		dlinkmq_httpconn_timer(1);
 
 		//2. 连接网络
+
+		mqtt_fmt_print("---DlinkmqHttp_ConnectNetWork before ConnectNetwork");
 		netRet = ConnectNetwork(pstHttp->pstNetWork, dotlink_host, dotlink_port);
+		mqtt_fmt_print("---DlinkmqHttp_ConnectNetWork after ConnectNetwork netRet=%d", netRet);
 
 		mqtt_fmt_print("---DlinkmqHttp_Init ConnectNetwork :%d", netRet);
 
@@ -124,6 +136,8 @@ we_int DlinkmqHttp_ConnectNetWork(we_handle hDlinkmqHttpHandle)
 		
 	} 
 
+
+	mqtt_fmt_print("---DlinkmqHttp_ConnectNetWork end");
 	
 
 	return ret;

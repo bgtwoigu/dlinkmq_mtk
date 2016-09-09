@@ -100,13 +100,6 @@ void DlinkMQTTFree(void *buf);
 
 #define DLINKMQ_MALLOC(Param)       DlinkMQTTMalloc(Param)
 
-#define DLINKMQ_FREE(param)  \
-{\
-	if(param != NULL)\
-{\
-	DlinkMQTTFree(param);\
-	param = NULL;\
-}\
-}
+#define DLINKMQ_FREE(Param)	DlinkMQTTFree(Param)
 
 #endif

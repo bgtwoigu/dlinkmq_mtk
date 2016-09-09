@@ -91,6 +91,8 @@ FS_HANDLE file_h;
 
 we_handle g_pstDlinkmqMgr = NULL;
 we_handle g_pstDlinkmqMsgHandle = NULL;
+dlinkmq_device_info *g_device_info = NULL;
+dlinkmq_on_receive *g_fun_cb = NULL;
 
 static we_void dlinkmq_init_timmer();
 static void mqtt_service_init_timer_start();
@@ -103,18 +105,23 @@ we_int32 dlinkmq_init_device_info(dlinkmq_device_info *device_info, dlinkmq_on_r
 	{
 		return ret;
 	}
-
-	ret = DlinkmqMsg_Init(&g_pstDlinkmqMsgHandle);
+#if 0
+	ret = DlinkmqMsg_Init((we_handle *)&g_pstDlinkmqMsgHandle);
+	mqtt_fmt_print("---dlinkmq_init_device_info  DlinkmqMsg_Init ret=%d",ret);
+	
 	ret = DlinkmqMgr_Init((we_handle *)&g_pstDlinkmqMgr);
+	mqtt_fmt_print("---dlinkmq_init_device_info  DlinkmqMgr_Init ret=%d",ret);
 
 	DlinkmqMgr_SetData(g_pstDlinkmqMgr, device_info, fun_cb);
-
+#endif
+	g_device_info = device_info;
+	g_fun_cb = fun_cb;
 
 	dlinkmq_init_timmer();
    
-	mqtt_fmt_print("---dlinkmq_init_device_info");
+	mqtt_fmt_print("---dlinkmq_init_device_info  end");
 
-	return ret;
+	return DlinkMQ_ERROR_CODE_SUCCESS;
 }
 
 static we_void dlinkmq_init_timmer()
@@ -168,11 +175,27 @@ void mqtt_cb_exec(MQTTAsyncCallbackFunc cb,int result){
 }
 
 
+
+void dlinkmq_init_handle(void){
+	we_int32 ret=0;
+	
+	ret = DlinkmqMsg_Init((we_handle *)&g_pstDlinkmqMsgHandle);
+	mqtt_fmt_print("---dlinkmq_init_device_info  DlinkmqMsg_Init ret=%d",ret);
+	
+	ret = DlinkmqMgr_Init((we_handle *)&g_pstDlinkmqMgr);
+	mqtt_fmt_print("---dlinkmq_init_device_info  DlinkmqMgr_Init ret=%d",ret);
+
+	DlinkmqMgr_SetData(g_pstDlinkmqMgr, g_device_info, g_fun_cb);
+	g_device_info = NULL;
+	g_fun_cb = NULL;
+	
+	kal_prompt_trace(MOD_MQTT,"---dlinkmq_init_handle:%d",ret);
+	
+}
 //static int mqtt_service_start()
 int mqtt_service_start() 
 {
 	int ret=-1;
-
 	DlinkmqMsg_PostMsg(g_pstDlinkmqMsgHandle, E_MQ_MSG_MODULEID_MQTT, E_MQ_MSG_EVENTID_MQTT_INIT, 0, 0, 0, 0, NULL, NULL);
 
 #if 0
@@ -185,9 +208,15 @@ int mqtt_service_start()
 
 static void dlinkmq_service_init() 
 {
-	DlinkmqMsg_SendMsg(g_pstDlinkmqMsgHandle, E_MQ_MSG_MODULEID_HTTP, E_MQ_MSG_EVENTID_NEW_HTTP, 0, 0, 0, 0, NULL, NULL);
-
+	we_int ret=0;
 	mqtt_fmt_print("---dlinkmq_service_init init");
+	if(g_device_info && g_fun_cb)
+	{
+		dlinkmq_init_handle();
+	}
+	ret = DlinkmqMsg_SendMsg(g_pstDlinkmqMsgHandle, E_MQ_MSG_MODULEID_HTTP, E_MQ_MSG_EVENTID_NEW_HTTP, 0, 0, 0, 0, NULL, NULL);
+
+	mqtt_fmt_print("---dlinkmq_service_init end  ret=%d",ret);
 }
 
 
@@ -201,8 +230,14 @@ static void mqtt_service_stop()
 
 static void mqtt_service_init_timer_start()
 {
+	mqtt_fmt_print("-----------mqtt_service_init_timer_start");
 	stack_init_timer(&g_mqtt_task_stack_init_timer, "MQTT INIT Timer", MOD_MQTT);
-	stack_start_timer(&g_mqtt_task_stack_init_timer, MQTT_STACK_INIT_TIMER_ID, KAL_TICKS_30_SEC);
+
+	#ifdef  __MTK_TARGET__
+	stack_start_timer(&g_mqtt_task_stack_init_timer, MQTT_STACK_INIT_TIMER_ID, KAL_TICKS_1_MIN * 2);
+	#else 
+	stack_start_timer(&g_mqtt_task_stack_init_timer, MQTT_STACK_INIT_TIMER_ID, KAL_TICKS_3_SEC);
+	#endif
 	//stack_start_timer(&g_mqtt_task_stack_init_timer, MQTT_STACK_INIT_TIMER_ID, KAL_TICKS_30_SEC);
 }
 
@@ -741,20 +776,16 @@ we_int32 char2int(we_int8 *str){
 }
 we_int32 dlinkmq_parse_payload(we_int8 *payload){
 
+	we_int32 ret=0;
 
-    we_int32 ret=0;
-
-	#if 0
-    dlinkmq_datapoint datapoint;
+	#if 1
+	dlinkmq_on_receive *pstRecvInfo =  DlinkmqMgr_GetRecvInfo(g_pstDlinkmqMgr);
+	dlinkmq_datapoint datapoint;
 	we_int8 *hex_temp=DLINKMQ_MALLOC(5);
-	we_int8 *data=DLINKMQ_MALLOC(strlen(payload)-12);
-
-	//we_int8 *data=DLINKMQ_MALLOC(15);
-	//memcpy(payload,"#510200fd000611",15);
-
-	if(payload[0]!='#' || strlen(payload)<13){
+	we_int8 *data=NULL;
+	
+	if(pstRecvInfo == NULL || hex_temp== NULL || payload[0]!='#' || strlen(payload)<13){
 		DLINKMQ_FREE(hex_temp);
-		DLINKMQ_FREE(data);
 		return DlinkMQ_ERROR_CODE_PARAM;
 	}
 	
@@ -770,54 +801,49 @@ we_int32 dlinkmq_parse_payload(we_int8 *payload){
 	strncpy( hex_temp,payload+9 , 4);
 	datapoint.cmd_value_len=hex2int(hex_temp);
 	
-	strncpy( data,payload+13 , strlen(payload) );
+	data=DLINKMQ_MALLOC(datapoint.cmd_value_len);
+	if(data ==NULL){
+		DLINKMQ_FREE(hex_temp);
+		return DlinkMQ_ERROR_CODE_PARAM;
+	}
+	strncpy( data,payload+13 , datapoint.cmd_value_len );
 	datapoint.cmd_value=data;
-	//if(strlen(data)>0){
-	//	datapoint.cmd_value=data;
-	//}
-	//else{
-	//	//数据区没数据
-	//	if (datapoint.cmd_id==1 || datapoint.cmd_id==11)
-	//	{
-	//		DLINKMQ_FREE(hex_temp);
-	//		DLINKMQ_FREE(data);
-	//		return DlinkMQ_ERROR_CODE_PARAM;
-	//	}
-	//}
 	
 
 	DLINKMQ_FREE(hex_temp);
 	DLINKMQ_FREE(data);
-	g_dmq_on_receive.on_receive_datapoint(&datapoint);
+	pstRecvInfo->on_receive_datapoint(&datapoint);
 #endif
 	return ret;
 }
 we_int32 dlinkmq_stringify_payload(dlinkmq_datapoint *data, we_int8 *payload){
-    	we_int32 ret=0;
-    	we_int8 temp[10]={0};
+    	we_int32 ret = 0;
+    	we_int8 *temp = DLINKMQ_MALLOC(5);
 	//we_int32 cmd_value_len=strlen(data->cmd_value);
 	
-	if(data->cmd_id>255 || data->msg_id>65535){
+	if(temp == NULL || data->cmd_id>255 || data->msg_id>65535){
+		DLINKMQ_FREE(temp);
 		return DlinkMQ_ERROR_CODE_PARAM;
 	}
 
 	sprintf(payload, "#");
 
-	_snprintf(temp,2,"%02x",data->cmd_id);
+	sprintf(temp,"%02x",data->cmd_id);
 	strcat(payload, temp);
 
-	_snprintf(temp,2,"%02x",data->cmd_value_type);
+	sprintf(temp,"%02x",data->cmd_value_type);
 	strcat(payload, temp);
 
-	_snprintf(temp,4,"%04x",data->msg_id);
+	sprintf(temp,"%04x",data->msg_id);
 	strcat(payload, temp);
 
-	_snprintf(temp,4,"%04x",data->cmd_value_len);
+	sprintf(temp,"%04x",data->cmd_value_len);
 	strcat(payload, temp);
 	
 	strcat(payload, data->cmd_value);
 	strcat(payload, "\r\n");
 
+	DLINKMQ_FREE(temp);
 	mqtt_fmt_print("--dlinkmq_stringify_payload:%s",payload);
 	return ret;
 }
@@ -833,7 +859,7 @@ void cb_dlinkmq_publish(we_int32 err_code, MQTTMessage *message){
 		DLINKMQ_FREE(message->payload);
 		DLINKMQ_FREE(message);
 		
-		mqtt_cb_exec_with_data(message->fun_cb,err_code ,(void*)message->datapoint);
+		mqtt_cb_exec_with_data(fun_cb,err_code ,(void*)datapoint);
 	}
 	else {
 		DLINKMQ_FREE(message->payload);
@@ -843,10 +869,16 @@ void cb_dlinkmq_publish(we_int32 err_code, MQTTMessage *message){
 we_int32 dlinkmq_publish(dlinkmq_datapoint *datapoint, on_send_msg fun_cb){
 	we_int32 ret=0;
 
-#if 0
+#if 1
+	Client *pstClient = DlinkmqMgr_GetClient(g_pstDlinkmqMgr);
+	St_DlinkmqMqttSubPub *pstMqttSubPub =  DlinkmqMgr_GetMqttSubPubInfo(g_pstDlinkmqMgr);
 	MQTTMessage *message=NULL;
 	we_int8 *payload=NULL;
-
+	
+ 	if (pstClient == NULL || pstMqttSubPub == NULL)
+	{
+		return DlinkMQ_ERROR_CODE_FAIL;
+	}
 	
 	if(!datapoint->cmd_value){
 		mqtt_cb_exec_with_data(fun_cb,DlinkMQ_ERROR_CODE_PARAM ,(void*)datapoint);
@@ -863,8 +895,8 @@ we_int32 dlinkmq_publish(dlinkmq_datapoint *datapoint, on_send_msg fun_cb){
 
 	ret=dlinkmq_stringify_payload(datapoint, payload);
 	if(ret!=DlinkMQ_ERROR_CODE_SUCCESS){
-		mqtt_med_free(payload);
-		mqtt_med_free(message);
+		DLINKMQ_FREE(payload);
+		DLINKMQ_FREE(message);
 		return ret;
 	}
 	
@@ -875,8 +907,8 @@ we_int32 dlinkmq_publish(dlinkmq_datapoint *datapoint, on_send_msg fun_cb){
 	message->datapoint=datapoint;
 	message->fun_cb=fun_cb;
 	
-
-	MQTTAsyncPublish (&g_dmq_client, pub_topic, message,cb_dlinkmq_publish);
+	
+	MQTTAsyncPublish (pstClient, pstMqttSubPub->pcPubTopic, message,cb_dlinkmq_publish);
 	
 #endif
 

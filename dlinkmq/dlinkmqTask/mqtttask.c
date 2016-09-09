@@ -59,16 +59,21 @@ static we_int32 connect_status;
 
 datapoint_list *g_datapoint_list = NULL;
 
-
+int miaoxin_med_malloc_num=0;
 void *miaoxin_med_malloc(size_t len){
 	void * result = med_alloc_ext_mem(len);
 	if(result){
 		memset(result,0,len);
+		miaoxin_med_malloc_num++;
 	}
 	return result;
 }
 void miaoxin_med_free(void *buf){
-	med_free_ext_mem(&buf);
+	if(buf != NULL){
+		med_free_ext_mem(&buf);
+		miaoxin_med_malloc_num--;
+		kal_prompt_trace(MOD_MQTT,"---miaoxin_med_malloc_num= %d",miaoxin_med_malloc_num);
+	}
 }
 
 void datapoint_list_add(dlinkmq_datapoint *datapoint){
@@ -494,26 +499,28 @@ void device_to_server_public(we_int32 cmd_id, we_void *data, we_int32 data_type)
 
 		dataLen = 1; 
 		datapoint->cmd_value=miaoxin_med_malloc(dataLen);
+		if (datapoint->cmd_value == NULL) {
+			miaoxin_med_free(datapoint);
+			return;
+		}
 		sprintf(datapoint->cmd_value,"%01d",data);
 	} else if (data_type == DATA_TYPE_NUMBER) {
-
-		//dataLen = 4; 
-		//datapoint->cmd_value=miaoxin_med_malloc(dataLen);
-		//sprintf(datapoint->cmd_value,"%d",data);
-
-
 		datapoint->cmd_value=miaoxin_med_malloc(10);
+		if (datapoint->cmd_value == NULL) {
+			miaoxin_med_free(datapoint);
+			return;
+		}
 		dataLen=sprintf(datapoint->cmd_value,"%d",data);
 	} else if  (data_type == DATA_TYPE_STRING) {
 		dataLen = strlen(data) + 1; 
 		datapoint->cmd_value=miaoxin_med_malloc(dataLen);
+		if (datapoint->cmd_value == NULL) {
+			miaoxin_med_free(datapoint);
+			return;
+		}
 		sprintf(datapoint->cmd_value,"%s",data);
 	}
-
-	if (datapoint->cmd_value == NULL) {
-		miaoxin_med_free(datapoint);
-		return;
-	}
+	
 
 	//memcpy(datapoint->cmd_value, data, dataLen);
 	
@@ -693,8 +700,6 @@ void on_receive_msg(dlinkmq_datapoint *datapoint){
 }
 
 
-
-
 extern void dlinkmq_run(ilm_struct *ilm_ptr);
 
 //task Èë¿Úº¯Êý
@@ -705,10 +710,12 @@ static void mqtt_main(task_entry_struct *task_entry_ptr)
 	dlinkmq_device_info device_info;
 	dlinkmq_on_receive fun_cb;
 	we_int32 ret=0;
+	kal_timerid init_device_timer;
 	kal_prompt_trace(MOD_MQTT,"---mqtt_main");
 
     	kal_get_my_task_index(&my_index);
 	stack_set_active_module_id(my_index, MOD_MQTT);
+	
 
 	strcpy(device_info.device_id,"222222");
 	strcpy(device_info.product_id,"b1e57467c92140e299022deb808cdd24");

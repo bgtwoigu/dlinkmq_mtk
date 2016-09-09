@@ -63,6 +63,7 @@ we_int DlinkmqMqtt_Init(we_handle *phDlinkmqMqttHandle)
 
 	pstMqtt->mqttStatus = MQTT_STATUS_INIT;
 
+	ret = DlinkMQ_ERROR_CODE_SUCCESS;
 
 	*phDlinkmqMqttHandle = pstMqtt;
 

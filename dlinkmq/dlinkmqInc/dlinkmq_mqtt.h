@@ -9,8 +9,8 @@ typedef struct tagSt_DlinkmqMqtt
 {
 	Network *pstNetWork;
 
-	we_char *pcMqttBuf;
-	we_char *pcMqttReadBuf;
+	we_uint8 *pcMqttBuf;
+	we_uint8 *pcMqttReadBuf;
 
 	we_int mqttStatus;
 

@@ -312,11 +312,13 @@ we_int DlinkmqMsg_SendMsg
 
 	if(NULL == pstMQMsgHandle)
 	{
+		mqtt_fmt_print("---DlinkmqMsg_SendMsg  NULL == pstMQMsgHandle");
 		return DlinkMQ_ERROR_CODE_FAIL;
 	}
 
 	if(eTgtModID < E_MQ_MSG_MODULEID_MGR || eTgtModID >= E_MQ_MSG_MODULEID_COUNT)
 	{
+		mqtt_fmt_print("---DlinkmqMsg_SendMsg  eTgtModID < E_MQ_MSG_MODULEID_MGR || eTgtModID >= E_MQ_MSG_MODULEID_COUNT");
 		return DlinkMQ_ERROR_CODE_FAIL;
 	}
 
@@ -331,6 +333,7 @@ we_int DlinkmqMsg_SendMsg
 	/* Call the message process directly */
 	if(NULL == pstMQMsgHandle->apcbMsgProcFunc[eTgtModID])
 	{        
+		mqtt_fmt_print("---DlinkmqMsg_SendMsg  NULL == pstMQMsgHandle->apcbMsgProcFunc[eTgtModID]");
 		return DlinkMQ_ERROR_CODE_FAIL;
 	}
 	(we_void)(pstMQMsgHandle->apcbMsgProcFunc[eTgtModID])(
