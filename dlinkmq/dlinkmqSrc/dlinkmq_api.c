@@ -149,6 +149,21 @@ we_void dlinkmq_httpconn_timer(we_uint8 start)
 	}
 }
 
+we_void dlinkmq_reconn_timer(we_uint8 start)
+{
+	mqtt_fmt_print("---mqtt dlinkmq_reconn_timer  sart = %d", start);
+	if(start){
+
+		mqtt_fmt_print("---mqtt dlinkmq_reconn_timer  stack_start_timer");
+		stack_start_timer(&g_mqtt_task_stack_http_connect_timer, MQTT_STACK_HTTP_CONNECT_TIMEROUT_ID, KAL_TICKS_1_MIN);
+	}else{
+
+		mqtt_fmt_print("---mqtt dlinkmq_reconn_timer stack_stop_timer");
+		stack_stop_timer(&g_mqtt_task_stack_http_connect_timer);
+	}
+}
+
+
 stack_timer_status_type dlinkmq_get_httpconn_timer_status()
 {
 	return g_mqtt_task_stack_http_connect_timer.timer_status;

@@ -147,7 +147,7 @@ void getTimeval( timeval *timev ,MYTIME t)
 	timev->tv_usec=0;
 }
 
-char expired(Timer* timer)
+char expired(St_Timer* timer)
 {
 	 timeval now, res;
 	MYTIME t;
@@ -159,7 +159,7 @@ char expired(Timer* timer)
 }
 
 
-void countdown_ms(Timer* timer, unsigned int timeout)
+void countdown_ms(St_Timer* timer, unsigned int timeout)
 {
 	 timeval now,interval;
 	MYTIME t;
@@ -172,7 +172,7 @@ void countdown_ms(Timer* timer, unsigned int timeout)
 }
 
 
-void countdown(Timer* timer, unsigned int timeout)
+void countdown(St_Timer* timer, unsigned int timeout)
 {
 	 timeval now ,interval;
 	MYTIME t;
@@ -184,7 +184,7 @@ void countdown(Timer* timer, unsigned int timeout)
 	timeradd(&now, &interval, &timer->end_time);
 }
 
-int left_ms(Timer* timer)
+int left_ms(St_Timer* timer)
 {
 	 timeval now, res;
 	MYTIME t;
@@ -197,7 +197,7 @@ int left_ms(Timer* timer)
 }
 
 
-void InitTimer(Timer* timer)
+void InitTimer(St_Timer* timer)
 {
 	 timeval interval;
 	interval.tv_sec=0;

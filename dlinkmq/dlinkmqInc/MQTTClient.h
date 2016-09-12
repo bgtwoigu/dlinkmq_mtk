@@ -42,7 +42,7 @@ enum mqttStatus {
 	MQTT_STATUS_RUN
 };
 
-void NewTimer(Timer*);
+void NewTimer(St_Timer*);
 
 //typedef struct MQTTMessage MQTTMessage;
 
@@ -104,7 +104,7 @@ struct Client {
     void (*defaultMessageHandler) (MessageData*);
     
     Network* ipstack;
-    Timer ping_timer;
+    St_Timer ping_timer;
 };
 
 #define DefaultClient {0, 0, 0, 0, NULL, NULL, 0, 0, 0}

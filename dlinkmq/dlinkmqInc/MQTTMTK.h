@@ -62,10 +62,9 @@ typedef struct{
 }timeval;
 
 
-typedef struct Timer Timer;
-struct Timer {
+typedef struct  tagSt_Timer {
 	 timeval end_time;
-};
+}St_Timer;
 
 typedef struct Network Network;
 
@@ -84,12 +83,12 @@ we_int DlinkmqNetwork_Init(we_handle *phDlinkmqNetworkHandle);
 
 we_void DlinkmqNetwork_Destroy(we_handle hDlinkmqNetworkHandle);
 
-char expired(Timer* timer);
-void countdown_ms(Timer* timer, unsigned int);
-void countdown(Timer* timer, unsigned int);
-int left_ms(Timer* timer);
+char expired(St_Timer* timer);
+void countdown_ms(St_Timer* timer, unsigned int);
+void countdown(St_Timer* timer, unsigned int);
+int left_ms(St_Timer* timer);
 
-void InitTimer(Timer* timer);
+void InitTimer(St_Timer* timer);
 int mtk_read(Network* n, unsigned char* buffer, int len, int timeout_ms);
 int mtk_write(Network* n, unsigned char* buffer, int len, int timeout_ms);
 void mtk_disconnect(Network* n);
