@@ -89,7 +89,7 @@ we_void DlinkmqMgr_SetData(we_handle hDlinkmqMgrHandle, dlinkmq_device_info *pst
 		return;
 	}
 
-	_snprintf(pstMgr->stMqttSubPub.pcPubTopic, len, "device/%s/%s/set", pstDeviceInfo->product_id,pstDeviceInfo->device_id);
+	sprintf(pstMgr->stMqttSubPub.pcPubTopic, "device/%s/%s/set", pstDeviceInfo->product_id,pstDeviceInfo->device_id);
 
 
 	len = strlen(pcDeviceStr) + strlen(pcGetStr) + 2 + strlen(pstDeviceInfo->product_id) + strlen(pstDeviceInfo->device_id);
@@ -101,7 +101,7 @@ we_void DlinkmqMgr_SetData(we_handle hDlinkmqMgrHandle, dlinkmq_device_info *pst
 		goto ErrorExit;
 	}
 
-	_snprintf(pstMgr->stMqttSubPub.pcSubTopic, len, "device/%s/%s/get", pstDeviceInfo->product_id,pstDeviceInfo->device_id);
+	sprintf(pstMgr->stMqttSubPub.pcSubTopic, "device/%s/%s/get", pstDeviceInfo->product_id,pstDeviceInfo->device_id);
 
 
 /*	pstMgr->pstMqClient->mqttstatus = MQTT_STATUS_INIT;*/

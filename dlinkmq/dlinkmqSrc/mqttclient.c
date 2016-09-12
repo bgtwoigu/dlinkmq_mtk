@@ -642,7 +642,7 @@ typedef struct sendPacketEvent{
 //#pragma mark - send packet
 
 
-static sendPacketEvent *currentSendingEvent;
+static sendPacketEvent *currentSendingEvent = NULL;
 static kal_uint32 lastSentTime_ms = 0;
 
 static void MQTTAsyncConnectSendPacketCheck(int,void *);
@@ -732,16 +732,16 @@ typedef struct readEvent{
 
 
 
-static readEvent *currentReadEvent;
+static readEvent *currentReadEvent = NULL;
 static const kal_uint32 readEventTimeoutInteval = 800;
-static kal_timerid readEventTimer;
+static kal_timerid readEventTimer = NULL;
 
 
 
 
 
 
-static void readEventFinish(void){
+static void readEventFinish(kal_bool isTimeout){
     MQTTAsyncCallbackFunc cb;
     int result;
 
@@ -751,7 +751,7 @@ static void readEventFinish(void){
 		mqtt_fmt_print("---mqtt readEventFinish readEventFinish currentReadEvent is NULL");
         return;
     }
-	if(readEventTimer){
+	if(readEventTimer && isTimeout == KAL_FALSE){
 
 		mqtt_fmt_print("---mqtt readEventFinish before kal_cancel_timer readEventTimer ");
 		kal_cancel_timer(readEventTimer);
@@ -770,11 +770,11 @@ static void readEventFinish(void){
     DLINKMQ_FREE(currentReadEvent->timer);
 
 	
-	mqtt_fmt_print("---mqtt readEventFinish  DLINKMQ_FREE currentReadEvent->result");
+	mqtt_fmt_print("---mqtt readEventFinish  DLINKMQ_FREE currentReadEvent->timer = 0x%x", currentReadEvent->timer);
 	
     DLINKMQ_FREE(currentReadEvent);
 
-mqtt_fmt_print("---mqtt readEventFinish  DLINKMQ_FREE currentReadEvent ");
+mqtt_fmt_print("---mqtt readEventFinish  DLINKMQ_FREE currentReadEvent =0x%x ", currentReadEvent);
 	
     currentReadEvent = NULL;
     currentReadStatus = readStatusReady;
@@ -803,7 +803,7 @@ static void readEventTimeout(void * timerData){
 	currentReadEvent->result = FAILURE;
 
 	mqtt_fmt_print("---mqtt readEventTimeout before readEventFinish");
-	readEventFinish();
+	readEventFinish(KAL_TRUE);
 	mqtt_fmt_print("---mqtt readEventTimeout after readEventFinish");
 
 
@@ -833,17 +833,17 @@ static void readEventDoNext(void){
 		currentReadEvent->buffer += rc;
         currentReadEvent->result += rc;
         if (currentReadEvent->result == currentReadEvent->len) {
-            readEventFinish();
+            readEventFinish(KAL_FALSE);
             return;
 		}else if(rc == 0){
 		mqtt_fmt_print("\n---mqtt read fail!\n");
 			currentReadEvent->result = -1;
-			readEventFinish();
+			readEventFinish(KAL_FALSE);
 		}
     }
     if(rc == -1){
         currentReadEvent->result = -1;
-        readEventFinish();
+        readEventFinish(KAL_FALSE);
         return;
     }
     if(rc == -2){
@@ -865,10 +865,14 @@ static void asyncRead(Client *c,unsigned char *buffer,int len,int timeout_ms,MQT
         return;
     }
     currentReadEvent = (readEvent *)DLINKMQ_MALLOC(sizeof(readEvent));
+
+	mqtt_fmt_print("---mqtt asyncRead currentReadEvent = 0x%x", currentReadEvent);
     currentReadEvent->c = c;
     currentReadEvent->len = len;
     currentReadEvent->buffer = buffer;
     currentReadEvent->timer = (Timer *)DLINKMQ_MALLOC(sizeof(Timer));
+
+	mqtt_fmt_print("---mqtt asyncRead  currentReadEvent->timer = 0x%x",  currentReadEvent->timer);
     currentReadEvent->result = 0;
     InitTimer(currentReadEvent->timer);
     countdown_ms(currentReadEvent->timer, timeout_ms);
@@ -876,7 +880,10 @@ static void asyncRead(Client *c,unsigned char *buffer,int len,int timeout_ms,MQT
     currentReadStatus = readStatusReading;
 	//readEventTimer = kal_create_timer("MQTTClientReadEventTimer");
 	if(readEventTimer == NULL){
+		
 		readEventTimer = kal_create_timer("MQTTClientReadEventTimer");
+
+		mqtt_fmt_print("---mqtt kal_create_timer readEventTimer");
 	}
 mqtt_fmt_print("---mqtt kal_set_timer readEventTimer");
 	kal_set_timer(readEventTimer,readEventTimeout,NULL,kal_milli_secs_to_ticks(readEventTimeoutInteval),0);
@@ -898,7 +905,7 @@ typedef struct decodePacketEvent{
     Timer *timer;
 }decodePacketEvent;
 
-static decodePacketEvent *currentDecodeEvent;
+static decodePacketEvent *currentDecodeEvent = NULL;
 static void decodeEventFinish(void){
     MQTTAsyncCallbackFunc cb;
     int result;
@@ -989,7 +996,7 @@ typedef struct readPacketEvent{
     MQTTAsyncCallbackFunc cb;
 }readPacketEvent;
 
-static readPacketEvent *currentReadPacketEvent;
+static readPacketEvent *currentReadPacketEvent = NULL;
 
 static void readPacketEventFinish(void){
     MQTTAsyncCallbackFunc cb;
@@ -1076,8 +1083,8 @@ void asyncReadPacket(Client *c,Timer *timer,MQTTAsyncCallbackFunc cb){
 
 //#pragma mark - keep alive;
 
-static Client* keepAliveClient;
-static MQTTAsyncCallbackFunc keepAliveCB;
+static Client* keepAliveClient = NULL;
+static MQTTAsyncCallbackFunc keepAliveCB = NULL;
 void cbAsyncKeepAlive(int result,void *data){
 
 	kal_uint32 ticks;
@@ -1199,7 +1206,7 @@ typedef struct cycleEvent{
 }cycleEvent;
 
 
-static cycleEvent *currentCycle;
+static cycleEvent *currentCycle = NULL;
 
 void cycleFinish(int ignored,void* data){
     MQTTAsyncCallbackFunc cb;
@@ -1350,7 +1357,7 @@ typedef struct waitForEvent{
     Timer *timer;
     MQTTAsyncCallbackFunc cb;
 }waitForEvent;
-static waitForEvent *currentWaitEvent;
+static waitForEvent *currentWaitEvent = NULL;
 
 void waitFinish(int result){
     MQTTAsyncCallbackFunc cb;
@@ -1414,7 +1421,7 @@ typedef struct  MQTTYieldEvent{
     MQTTAsyncCallbackFunc cb;
 }MQTTYieldEvent;
 
-static MQTTYieldEvent *currentYieldEvent;
+static MQTTYieldEvent *currentYieldEvent = NULL;
 void MQTTYieldEventFinish(result){
     MQTTAsyncCallbackFunc cb;
     if (!currentYieldEvent) {
@@ -1476,7 +1483,7 @@ typedef struct MQTTConnectAction{
     MQTTAsyncCallbackFunc cb;
 }MQTTConnectAction;
 
-static MQTTConnectAction *currentConnectAction;
+static MQTTConnectAction *currentConnectAction = NULL;
 
 
 void MQTTAsyncConnectFinish(int result){
@@ -1576,7 +1583,7 @@ typedef struct MQTTSubscribeAction{
     MQTTAsyncCallbackFunc cb;
 }MQTTSubscribeAction;
 
-static MQTTSubscribeAction *currentSubscribeAction;
+static MQTTSubscribeAction *currentSubscribeAction = NULL;
 
 void MQTTAsyncSubscribeFinish(int result){
     MQTTAsyncCallbackFunc cb;
@@ -1680,7 +1687,7 @@ typedef struct MQTTUnsubscribeAction{
     MQTTAsyncCallbackFunc cb;
 }MQTTUnsubscribeAction;
 
-static MQTTUnsubscribeAction *currentUnsubscribeAction;
+static MQTTUnsubscribeAction *currentUnsubscribeAction = NULL;
 
 void MQTTAsyncUnsubscribeFinish(int result){
     MQTTAsyncCallbackFunc cb;
@@ -1762,7 +1769,7 @@ typedef struct MQTTPublishAction{
     MQTTAsyncCallbackFunc cb;
 }MQTTPublishAction;
 
-static MQTTPublishAction *currentPublishAction;
+static MQTTPublishAction *currentPublishAction = NULL;
 
 void MQTTAsyncPublishFinish(int result){
     MQTTAsyncCallbackFunc cb;
@@ -1866,7 +1873,7 @@ typedef struct MQTTDisconnectAction{
     MQTTAsyncCallbackFunc cb;
 }MQTTDisconnectAction;
 
-static MQTTDisconnectAction *currentDisconnectAction;
+static MQTTDisconnectAction *currentDisconnectAction = NULL;
 
 void MQTTAsyncDisconnectSendPacketCheck(int result,void *data){
     MQTTAsyncCallbackFunc cb;

@@ -336,6 +336,7 @@ we_void DlinkmqHttp_RecvBuffer(we_handle hDlinkmqHttpHandle)
 		if (pJsonStr)
 		{
 			pJsonStr += strlen(pLineStr);
+			mqtt_fmt_print("-----DlinkmqHttp_RecvBuffer:pJsonStr:%s", pJsonStr);
 
 			ret = parseJsonToSaveInfo(pJsonStr);
 
@@ -379,11 +380,13 @@ we_void DlinkmqHttp_PostJsonToSeverSendBuff(we_handle hDlinkmqHttpHandle)
 		return;
 	}
 
+	mqtt_fmt_print("\n---mqtt post json -buffer:%s, len=%d",pstHttp->pSendBuff, pstHttp->iBuffSize);
+
 	while(pstHttp->iBuffSize > 0)
 	{
 		iSendNum = mtk_write(pstHttp->pstNetWork, pstHttp->pSendBuff + pstHttp->iSentSize, pstHttp->iBuffSize, 0); 
 
-		mqtt_fmt_print("DlinkmqHttp_PostJsonToSeverSendBuff iSendNum = %d",iSendNum);
+		mqtt_fmt_print("--- mqtt DlinkmqHttp_PostJsonToSeverSendBuff iSendNum = %d",iSendNum);
 
 		if (iSendNum > 0)
 		{
@@ -460,7 +463,7 @@ we_int DlinkmqHttp_PostJsonToSever(we_handle hDlinkmqHttpHandle, we_char *json_d
 		return ret;
 	}
 
-	pstHttp->iBuffSize = _snprintf(pstHttp->pSendBuff, len, post_data, path, hostname, dotlink_port, json_len, json_data);
+	pstHttp->iBuffSize = sprintf(pstHttp->pSendBuff, post_data, path, hostname, dotlink_port, json_len, json_data);
 	pstHttp->iSentSize = 0;
 
 	DlinkmqHttp_PostJsonToSeverSendBuff(hDlinkmqHttpHandle);
@@ -497,13 +500,16 @@ we_int DlinkmqHttp_GetHttpJson(we_char* pid, we_char *did, we_char *productSecre
 
 	MD5Init(&md5);
 
-	_snprintf(encrypt,len,formt_keys,productSecret, did, pid ,productSecret);
+	len = sprintf(encrypt,formt_keys,productSecret, did, pid ,productSecret);
 	MD5Update(&md5,encrypt,len);
 	MD5Final(&md5,decrypt);
 
 	for(i = 0; i < 16; i++)
 	{
-		sprintf(sign,"%s%02x",sign,decrypt[i]);
+		char tempStr[5] = {0};
+
+		sprintf(tempStr, "%02x", decrypt[i]);
+		strcat(sign, tempStr);
 	}
 
 	len1 = strlen(json_keys);
@@ -516,9 +522,9 @@ we_int DlinkmqHttp_GetHttpJson(we_char* pid, we_char *did, we_char *productSecre
 		DLINKMQ_FREE(encrypt);
 		return ret;
 	}
-	_snprintf(pjson_data,len, json_keys, did, pid, sign);
+	sprintf(pjson_data, json_keys, did, pid, sign);
 
-	mqtt_fmt_print("\n---MQTTClient_setup-DATA:%s",pjson_data);
+	mqtt_fmt_print("\n---mqtt json -DATA:%s, len=%d",pjson_data, len);
 
 	ret = DlinkMQ_ERROR_CODE_SUCCESS;
 
