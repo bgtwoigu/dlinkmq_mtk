@@ -137,9 +137,14 @@ static we_void dlinkmq_init_timmer()
 
 we_void dlinkmq_httpconn_timer(we_uint8 start)
 {
+	mqtt_fmt_print("---mqtt dlinkmq_httpconn_timer  sart = %d", start);
 	if(start){
+
+		mqtt_fmt_print("---mqtt dlinkmq_httpconn_timer  stack_start_timer");
 		stack_start_timer(&g_mqtt_task_stack_http_connect_timer, MQTT_STACK_HTTP_CONNECT_TIMEROUT_ID, KAL_TICKS_1_MIN);
 	}else{
+
+		mqtt_fmt_print("---mqtt dlinkmq_httpconn_timer stack_stop_timer");
 		stack_stop_timer(&g_mqtt_task_stack_http_connect_timer);
 	}
 }
@@ -156,6 +161,8 @@ void mqtt_cb_exec_with_data(MQTTAsyncCallbackFunc cb,int result,void *data){
 	msg = allocate_ilm(stack_get_active_module_id());
 	ASSERT(msg);
 	ASSERT(cb_msg);
+
+	mqtt_fmt_print("---mqtt_cb_exec_with_data  resultt=%d",result);
 	cb_msg->cb = cb;
 	cb_msg->result = result;
 	cb_msg->data = data;
@@ -166,6 +173,7 @@ void mqtt_cb_exec_with_data(MQTTAsyncCallbackFunc cb,int result,void *data){
 	msg->peer_buff_ptr = NULL;
 	msg->sap_id = INVALID_SAP;
 	msg_send_ext_queue(msg);
+
 
 }
 
@@ -196,6 +204,8 @@ void dlinkmq_init_handle(void){
 int mqtt_service_start() 
 {
 	int ret=-1;
+
+	mqtt_fmt_print("---mqtt_service_start mqtt_service_start");
 	DlinkmqMsg_PostMsg(g_pstDlinkmqMsgHandle, E_MQ_MSG_MODULEID_MQTT, E_MQ_MSG_EVENTID_MQTT_INIT, 0, 0, 0, 0, NULL, NULL);
 
 #if 0
@@ -595,15 +605,15 @@ void cbYield(int result,void* data){
 		kal_get_time(&ticks);
 		currentTime = kal_ticks_to_milli_secs(ticks);
 		inteval = currentTime - lastYieldTime;
-		//mqtt_fmt_print("\nyield current:%d yield last:%d inteval:%d\n ",currentTime,lastYieldTime,inteval);
+		mqtt_fmt_print("\n---mqtt yield current:%d yield last:%d inteval:%d\n ",currentTime,lastYieldTime,inteval);
 		
 		if(inteval < minimumYieldInteval){
-			//mqtt_fmt_print("\nskip yield!\n");
+			mqtt_fmt_print("\n---mqtt skip yield!\n");
 			mqtt_service_set_keepalive_timer(1);
 			return;
 		}
 		yieldCount++;
-		//mqtt_fmt_print("\nYIELD! count:%d\n",yieldCount);
+		mqtt_fmt_print("\n---mqttt YIELD! count:%d\n",yieldCount);
 
 		lastYieldTime = currentTime;
 		MQTTAsyncYield(pstClient,100000,cbYield);
@@ -664,6 +674,7 @@ static void mqtt_reconnect(void){
 
 void dlinkmq_ping_timeout(void){
 
+	mqtt_fmt_print("---dlinkmq_ping_timeout dlinkmq_ping_timeout");
 	DlinkmqMsg_PostMsg(g_pstDlinkmqMsgHandle, E_MQ_MSG_MODULEID_MQTT, E_MQ_MSG_EVENTID_MQTT_INIT, 0, 0, 0, 0, NULL, NULL);
 	//mqtt_service_connect();
 }

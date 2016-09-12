@@ -170,6 +170,8 @@ we_int DlinkmqMsg_PostMsg
 	St_MQMsg *pstMQMsg = NULL;
 
 
+	mqtt_fmt_print("---DlinkmqMsg_PostMsg post eTgtModID=%d, iMsgID=%d", eTgtModID, iMsgID);
+
 	if(NULL == pstMQMsgHandle)
 	{
 		return DlinkMQ_ERROR_CODE_FAIL;

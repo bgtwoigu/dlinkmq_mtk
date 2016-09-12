@@ -98,6 +98,7 @@ we_int DlinkmqMqtt_ConnectNetWork(we_handle hDlinkmqMqttHandle)
 
 	if(pstMqtt->pstNetWork != NULL) //之前连接还未销毁
 	{
+		mqtt_fmt_print("---DlinkmqMqtt_ConnectNetWork first DlinkmqMqtt_DestroyNetwork");
 		DlinkmqMqtt_DestroyNetwork(hDlinkmqMqttHandle, FALSE);
 	}
 
@@ -124,10 +125,13 @@ we_int DlinkmqMqtt_ConnectNetWork(we_handle hDlinkmqMqttHandle)
 			|| netRet == DlinkMQ_ERROR_CODE_GET_HOSTNAME) //需要重新连接
 		{
 
+			mqtt_fmt_print("---DlinkmqMqtt_ConnectNetWork need connect :%d", netRet);
 			DlinkmqMqtt_DestroyNetwork(hDlinkmqMqttHandle, TRUE);
 
 		} else if (netRet == DlinkMQ_ERROR_CODE_SUCCESS
 			|| netRet == DlinkMQ_ERROR_CODE_WOULDBLOCK) { //需要设置timer, timer连接超时，需要重新连接
+
+			mqtt_fmt_print("---DlinkmqMqtt_ConnectNetWork waiting for connect :%d", netRet);
 
 
 		} else { //其他内存错误。
@@ -169,7 +173,7 @@ we_void DlinkmqMqtt_DestroyNetwork(we_handle hDlinkmqMqttHandle, we_bool isRecon
 	
 	if (pstMqtt->mqttStatus != MQTT_STATUS_RECONN && isReconnect == TRUE)//重连
 	{
-		mqtt_fmt_print("DlinkmqMqtt_DestroyNetwork reconnect");
+		mqtt_fmt_print("---DlinkmqMqtt_DestroyNetwork reconnect");
 
 		pstMqtt->mqttStatus = MQTT_STATUS_RECONN;
 		DlinkmqMsg_PostMsg(g_pstDlinkmqMsgHandle, E_MQ_MSG_MODULEID_MQTT, E_MQ_MSG_EVENTID_MQTT_INIT, 0, 0, 0, 0, NULL, NULL);

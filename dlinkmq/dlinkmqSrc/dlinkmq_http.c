@@ -166,7 +166,7 @@ we_void DlinkmqHttp_DestroyNetwork(we_handle hDlinkmqHttpHandle, we_bool isRecon
 
 	if (pstHttp->isInitFin == FALSE && isReconnect == TRUE)//ÖØÁ¬
 	{
-		mqtt_fmt_print("DlinkmqHttp_DestroyNetwork reconnect");
+		mqtt_fmt_print("----DlinkmqHttp_DestroyNetwork reconnect");
 		DlinkmqMsg_PostMsg(g_pstDlinkmqMsgHandle, E_MQ_MSG_MODULEID_HTTP, E_MQ_MSG_EVENTID_NEW_HTTP, 0, 0, 0, 0, NULL, NULL);
 	}
 
@@ -327,7 +327,7 @@ we_void DlinkmqHttp_RecvBuffer(we_handle hDlinkmqHttpHandle)
 	pTempBuffer = DLINKMQ_MALLOC(WE_SOCKET_MAX_TCP_RECV_BUFFER_SIZE);
 	iRecvNum = mtk_read(pstHttp->pstNetWork, pTempBuffer, WE_SOCKET_MAX_TCP_RECV_BUFFER_SIZE, 0);
 
-	mqtt_fmt_print("DlinkmqHttp_RecvBuffer:iRecvNum:%d", iRecvNum);
+	mqtt_fmt_print("-----DlinkmqHttp_RecvBuffer:iRecvNum:%d", iRecvNum);
 
 	if (iRecvNum > 0)
 	{
@@ -342,6 +342,7 @@ we_void DlinkmqHttp_RecvBuffer(we_handle hDlinkmqHttpHandle)
 			if (ret == DlinkMQ_ERROR_CODE_SUCCESS)
 			{
 				pstHttp->isInitFin = TRUE;
+				mqtt_fmt_print("---DlinkmqHttp_RecvBuffer: DlinkmqMsg_PostMsg");
 				DlinkmqMsg_PostMsg(g_pstDlinkmqMsgHandle, E_MQ_MSG_MODULEID_MQTT, E_MQ_MSG_EVENTID_MQTT_INIT, 0, 0, 0, 0, NULL, NULL);
 
 				DlinkmqHttp_DestroyNetwork(hDlinkmqHttpHandle, FALSE);

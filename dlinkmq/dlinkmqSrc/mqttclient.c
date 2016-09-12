@@ -679,7 +679,7 @@ static void sendEventDoNext(void){
         //return;
     }
     rc = c->ipstack->mqttwrite(c->ipstack, &c->buf[sent], length, left_ms(timer));
-	//printf("\n----------------------------mqttwrite-->len:%d",rc);
+    mqtt_fmt_print("\n----------------------------mqttwrite-->len:%d",rc);
     if (rc >= 0) {
         sent += rc;
     }
@@ -744,33 +744,67 @@ static kal_timerid readEventTimer;
 static void readEventFinish(void){
     MQTTAsyncCallbackFunc cb;
     int result;
+
+	mqtt_fmt_print("---mqtt readEventFinish readEventFinish start");
+	
     if (!currentReadEvent) {
+		mqtt_fmt_print("---mqtt readEventFinish readEventFinish currentReadEvent is NULL");
         return;
     }
 	if(readEventTimer){
+
+		mqtt_fmt_print("---mqtt readEventFinish before kal_cancel_timer readEventTimer ");
 		kal_cancel_timer(readEventTimer);
+
+		mqtt_fmt_print("---mqtt readEventFinish after kal_cancel_timer readEventTimer ");
 		//readEventTimer = NULL;
 	}
+
     cb = currentReadEvent->cb;
+
+	mqtt_fmt_print("---mqtt readEventFinish  currentReadEvent->cb");
     result = currentReadEvent->result;
+
+	mqtt_fmt_print("---mqtt readEventFinish  currentReadEvent->result");
+	
     DLINKMQ_FREE(currentReadEvent->timer);
+
+	
+	mqtt_fmt_print("---mqtt readEventFinish  DLINKMQ_FREE currentReadEvent->result");
+	
     DLINKMQ_FREE(currentReadEvent);
+
+mqtt_fmt_print("---mqtt readEventFinish  DLINKMQ_FREE currentReadEvent ");
+	
     currentReadEvent = NULL;
     currentReadStatus = readStatusReady;
+
+	mqtt_fmt_print("---mqtt readEventFinish  currentReadStatus is  readStatusReady");
+	
     if (cb )
     {
+    	mqtt_fmt_print("---mqtt readEventFinish before mqtt_cb_exec mqtt_cb_exec ");
         mqtt_cb_exec(cb,result);
+	mqtt_fmt_print("---mqtt readEventFinish after mqtt_cb_exec mqtt_cb_exec ");
     }
+
+	mqtt_fmt_print("---mqtt readEventFinish readEventFinish end");
     
 }
 static void readEventTimeout(void * timerData){
+
+	mqtt_fmt_print("---mqtt readEventTimeout readEventTimeout");
 	//readEventTimer = NULL;
     if (!currentReadEvent) {
+
+	mqtt_fmt_print("---mqtt readEventTimeout currentReadEvent is NULL");
         return;
     }
 	currentReadEvent->result = FAILURE;
-	
+
+	mqtt_fmt_print("---mqtt readEventTimeout before readEventFinish");
 	readEventFinish();
+	mqtt_fmt_print("---mqtt readEventTimeout after readEventFinish");
 
 
 }
@@ -778,7 +812,7 @@ static int tmpCount=0;
 static void readEventDoNext(void){
     int rc;
 	Client *c;
-	//printf("readEventDoNext");
+	mqtt_fmt_print("---mqtt readEventDoNext");
     if (!currentReadEvent) {
         return;
     }
@@ -790,9 +824,11 @@ static void readEventDoNext(void){
 
     c = currentReadEvent->c;
 
-    //printf("\nwill read next,current length:%d,total length:%d\n,buffer:%x",currentReadEvent->result,currentReadEvent->len,*(currentReadEvent->buffer));
+   // mqtt_fmt_print("\n---mqtt will read next,current length:%d,total length:%d\n,buffer:%x",currentReadEvent->result,currentReadEvent->len,*(currentReadEvent->buffer));
+   mqtt_fmt_print("\n---mqtt will read next");
     rc = c->ipstack->mqttread(c->ipstack, currentReadEvent->buffer, currentReadEvent->len, currentReadEvent->timeout_ms);
-	//printf("\nread finish,buffer:%x\n",*(currentReadEvent->buffer));
+	mqtt_fmt_print("\n---mqtt will read finish rc = %d", rc);
+   //mqtt_fmt_print("\n---mqtt read finish,buffer:%x\n",*(currentReadEvent->buffer));
     if (rc >= 0) {
 		currentReadEvent->buffer += rc;
         currentReadEvent->result += rc;
@@ -800,7 +836,7 @@ static void readEventDoNext(void){
             readEventFinish();
             return;
 		}else if(rc == 0){
-		//printf("\nread fail!\n");
+		mqtt_fmt_print("\n---mqtt read fail!\n");
 			currentReadEvent->result = -1;
 			readEventFinish();
 		}
@@ -811,7 +847,7 @@ static void readEventDoNext(void){
         return;
     }
     if(rc == -2){
-        //printf("\nread event would block");
+        mqtt_fmt_print("\n----mqtt read event would block");
         return;
     }
     readEventDoNext();
@@ -822,7 +858,7 @@ static void readEventDoNext(void){
 static void asyncRead(Client *c,unsigned char *buffer,int len,int timeout_ms,MQTTAsyncCallbackFunc cb){
     
     if (currentReadEvent || currentReadStatus != readStatusReady) {
-		//printf("asyncRead -1");
+	mqtt_fmt_print("---mqtt asyncRead -1");
         if (cb) {
             mqtt_cb_exec(cb,-1);
         }
@@ -842,6 +878,7 @@ static void asyncRead(Client *c,unsigned char *buffer,int len,int timeout_ms,MQT
 	if(readEventTimer == NULL){
 		readEventTimer = kal_create_timer("MQTTClientReadEventTimer");
 	}
+mqtt_fmt_print("---mqtt kal_set_timer readEventTimer");
 	kal_set_timer(readEventTimer,readEventTimeout,NULL,kal_milli_secs_to_ticks(readEventTimeoutInteval),0);
     readEventDoNext();
 }
@@ -1030,7 +1067,7 @@ void asyncReadPacket(Client *c,Timer *timer,MQTTAsyncCallbackFunc cb){
     currentReadPacketEvent->rem_len = 0;
     currentReadPacketEvent->step = 1;
     currentReadPacketEvent->cb = cb;
-	//printf("\nbegin read\n");
+     mqtt_fmt_print("\n---mqtt begin read\n");
     asyncRead(c, c->readbuf, 1, left_ms(timer),cbAsyncReadPacketStep1);
     
 }
@@ -1138,7 +1175,7 @@ void asyncKeepAlive(Client *c,MQTTAsyncCallbackFunc cb){
 		}
 		//mqtt_fmt_print("\n- 2.5--04");
 
-		mqtt_fmt_print("\nping client");
+		mqtt_fmt_print("\n---mqtt ping client");
 		c->ping_outstanding = 1;
 		ping_timer_init(c->keepAliveInterval / 2);
 		asyncSendPacket(c, len, &timer, cbAsyncKeepAlive);
@@ -1279,7 +1316,7 @@ void cyclePacketTypeDispatch(int packet_type,void* data){
 			if (lastPingTime != 0) {
 
 				sentInteval = currentTime_ms - lastPingTime;
-				mqtt_fmt_print("\nPING PING PING PING PING PING RESP!!  currentTime_ms = %ld, sentInteval = %ld\n", currentTime_ms, sentInteval);
+				mqtt_fmt_print("\n----mqtt PING  PING RESP!!  currentTime_ms = %ld, sentInteval = %ld\n", currentTime_ms, sentInteval);
 			} 
 
 			lastPingTime = currentTime_ms;
@@ -1302,7 +1339,7 @@ void asyncCycle(Client* c, Timer* timer,MQTTAsyncCallbackFunc cb){
     currentCycle->c = c;
     currentCycle->timer = timer;
     currentCycle->cb = cb;
-	//printf("\ncycle-read packet\n");
+     mqtt_fmt_print("\n---mqtt cycle-read packet\n");
     asyncReadPacket(c, timer, cyclePacketTypeDispatch);
 }
 
@@ -1427,7 +1464,7 @@ void MQTTAsyncYield(Client* c, int timeout_ms,MQTTAsyncCallbackFunc cb){
     InitTimer(currentYieldEvent->timer);
     countdown_ms(currentYieldEvent->timer, timeout_ms);
     //MQTTYieldEventDoNext(SUCCESS);
-	//printf("\nCYCLE begin!\n");
+	mqtt_fmt_print("\n---mqtt CYCLE begin!\n");
 	asyncCycle(currentYieldEvent->c, currentYieldEvent->timer, MQTTYieldEventDoNext);
 }
 
