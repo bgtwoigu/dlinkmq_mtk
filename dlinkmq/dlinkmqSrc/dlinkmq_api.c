@@ -48,7 +48,9 @@
 static stack_timer_struct g_mqtt_task_stack_timer;
 static stack_timer_struct g_mqtt_task_stack_init_timer;
 static stack_timer_struct g_mqtt_task_stack_reconnect_timer;
+static stack_timer_struct g_mqtt_task_stack_ping_timer;
 static stack_timer_struct g_mqtt_task_stack_http_connect_timer;
+static stack_timer_struct g_mqtt_task_stack_client_connect_timer;
 
 static int tryReconnect = 0;
 
@@ -133,6 +135,9 @@ static we_void dlinkmq_init_timmer()
 	stack_init_timer(&g_mqtt_task_stack_reconnect_timer,"MQTT Reconnect Timer",MOD_MQTT);
 
 	stack_init_timer(&g_mqtt_task_stack_http_connect_timer,"MQTT HTTP Connect Timer",MOD_MQTT);
+	stack_init_timer(&g_mqtt_task_stack_client_connect_timer,"MQTT Client Connect Timer",MOD_MQTT);
+	stack_init_timer(&g_mqtt_task_stack_ping_timer,"MQTT Ping Connect Timer",MOD_MQTT);
+	
 }
 
 we_void dlinkmq_httpconn_timer(we_uint8 start)
@@ -149,19 +154,34 @@ we_void dlinkmq_httpconn_timer(we_uint8 start)
 	}
 }
 
-we_void dlinkmq_reconn_timer(we_uint8 start)
+we_void dlinkmq_client_reconn_timer(we_uint8 start)
 {
-	mqtt_fmt_print("---mqtt dlinkmq_reconn_timer  sart = %d", start);
+	mqtt_fmt_print("---mqtt dlinkmq_client_reconn_timer  sart = %d", start);
 	if(start){
 
-		mqtt_fmt_print("---mqtt dlinkmq_reconn_timer  stack_start_timer");
-		stack_start_timer(&g_mqtt_task_stack_http_connect_timer, MQTT_STACK_HTTP_CONNECT_TIMEROUT_ID, KAL_TICKS_1_MIN);
+		mqtt_fmt_print("---mqtt dlinkmq_client_reconn_timer  stack_start_timer");
+		stack_start_timer(&g_mqtt_task_stack_client_connect_timer, MQTT_STACK_CLIENT_CONNECT_TIMEROUT_ID, KAL_TICKS_1_MIN);
 	}else{
 
-		mqtt_fmt_print("---mqtt dlinkmq_reconn_timer stack_stop_timer");
-		stack_stop_timer(&g_mqtt_task_stack_http_connect_timer);
+		mqtt_fmt_print("---mqtt dlinkmq_client_reconn_timer stack_stop_timer");
+		stack_stop_timer(&g_mqtt_task_stack_client_connect_timer);
 	}
 }
+
+we_void dlinkmq_ping_conn_timer(we_uint8 start, kal_uint32 in_time)
+{
+	mqtt_fmt_print("---mqtt dlinkmq_ping_timer  sart = %d", start);
+	if(start){
+
+		mqtt_fmt_print("---mqtt dlinkmq_ping_timer  stack_start_timer");
+		stack_start_timer(&g_mqtt_task_stack_ping_timer, MQTT_STACK_PING_CONNECT_TIMEROUT_ID, in_time);
+	}else{
+
+		mqtt_fmt_print("---mqtt dlinkmq_ping_timer stack_stop_timer");
+		stack_stop_timer(&g_mqtt_task_stack_ping_timer);
+	}
+}
+
 
 
 stack_timer_status_type dlinkmq_get_httpconn_timer_status()
@@ -290,6 +310,16 @@ static void mqtt_service_set_reconnect_timer(kal_uint8 flag){
 	}else{
 		stack_stop_timer(&g_mqtt_task_stack_reconnect_timer);
 	}
+}
+
+void dlinkmq_service_set_keepalive_timer(kal_uint8 start)
+{
+	mqtt_service_set_keepalive_timer(start);
+}
+
+void dlinkmq_service_set_reconnect_timer(kal_uint8 start)
+{
+	mqtt_service_set_reconnect_timer(start);
 }
 
 
@@ -536,6 +566,25 @@ static int dlinkmq_cb_msg_gethostbyname(app_soc_get_host_by_name_ind_struct *dns
 						mqtt_fmt_print("---MQTT_STACK_HTTP&MQTT_CONNECT_TIMEROUT_ID http timeout-----");
 						
 					}
+					else if (MQTT_STACK_CLIENT_CONNECT_TIMEROUT_ID == pStackTimerInfo->timer_indx)
+					{
+						Client *pstClient = DlinkmqMgr_GetClient(g_pstDlinkmqMgr);
+
+						if(pstClient && pstClient->fnReadTimeout)
+						{
+							pstClient->fnReadTimeout(0, NULL);
+						}
+							
+					}
+					else if (MQTT_STACK_PING_CONNECT_TIMEROUT_ID == pStackTimerInfo->timer_indx)
+					{
+						Client *pstClient = DlinkmqMgr_GetClient(g_pstDlinkmqMgr);
+
+						if(pstClient && pstClient->fnPingTimeout)
+						{
+							pstClient->fnPingTimeout(0, NULL);
+						}
+					}		
 					else
 					{
 						mqtt_fmt_print("---MQTT timer: other's timer id-----");
@@ -677,7 +726,7 @@ static void mqtt_reconnect(void){
 	if (pstMqtt && pstMqtt->pstNetWork)
 	{
 		connectRetryCount++;
-		pstMqtt->pstNetWork->disconnect(pstMqtt->pstNetWork);	
+		//pstMqtt->pstNetWork->disconnect(pstMqtt->pstNetWork);	
 		mqtt_service_start(); 
 		//mqtt_service_connect();
 		mqtt_service_set_reconnect_timer(1);

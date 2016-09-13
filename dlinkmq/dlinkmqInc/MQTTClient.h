@@ -105,6 +105,9 @@ struct Client {
     
     Network* ipstack;
     St_Timer ping_timer;
+
+	MQTTAsyncCallbackFunc fnReadTimeout;
+	MQTTAsyncCallbackFunc fnPingTimeout;
 };
 
 #define DefaultClient {0, 0, 0, 0, NULL, NULL, 0, 0, 0}

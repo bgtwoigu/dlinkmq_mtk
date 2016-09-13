@@ -13,6 +13,10 @@ we_int DlinkmqMqtt_SockNotifyInd(we_handle hDlinkmqMqttHandle, we_void *pvMsg);
 we_void DlinkmqMqtt_DestroyNetwork(we_handle hDlinkmqMqttHandle, we_bool isReconnect);
 we_int DlinkmqMqtt_ConnectNetWork(we_handle hDlinkmqMqttHandle);
 we_void DlinkmqMqtt_ServiceInit(we_handle hDlinkmqMqttHandle);
+extern void dlinkmq_service_set_keepalive_timer(kal_uint8 start);
+extern void dlinkmq_service_set_reconnect_timer(kal_uint8 start);
+extern we_void dlinkmq_ping_conn_timer(we_uint8 start, kal_uint32 in_time);
+extern we_void dlinkmq_client_reconn_timer(we_uint8 start);
 
 static void FN_MQTTAsyncConnect_CB(int result,void *data);
 
@@ -161,7 +165,13 @@ we_void DlinkmqMqtt_DestroyNetwork(we_handle hDlinkmqMqttHandle, we_bool isRecon
 		return;
 	}
 
+	//重连清除所有timer
 	dlinkmq_httpconn_timer(0);
+	dlinkmq_ping_conn_timer(0, 0);
+	dlinkmq_client_reconn_timer(0);
+	dlinkmq_service_set_keepalive_timer(0);
+	dlinkmq_service_set_reconnect_timer(0);
+
 
 	DlinkmqNetwork_Destroy(pstMqtt->pstNetWork);
 

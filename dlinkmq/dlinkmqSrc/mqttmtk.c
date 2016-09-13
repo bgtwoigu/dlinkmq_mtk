@@ -143,6 +143,12 @@ U32 User_Socket_GetAccProfId(char* apn, cbm_sim_id_enum sim_id)
 void getTimeval( timeval *timev ,MYTIME t)
 {
 	long sec=(t.nYear -1970) *365*24*60*60+( t.nMonth-1)*30*24*60*60 +(t.nDay-1)*24*60*60 +t.nHour*60*60 +t.nMin*60 +t.nSec;
+
+	if (NULL == timev)
+	{
+		return;
+	}
+
 	timev->tv_sec=sec;
 	timev->tv_usec=0;
 }
@@ -151,6 +157,12 @@ char expired(St_Timer* timer)
 {
 	 timeval now, res;
 	MYTIME t;
+
+	if (NULL == timer)
+	{
+		return 0;
+	}
+
 	GetDateTime(&t);
 	getTimeval(&now,  t);
 	timersub(&timer->end_time, &now, &res);	
@@ -163,6 +175,12 @@ void countdown_ms(St_Timer* timer, unsigned int timeout)
 {
 	 timeval now,interval;
 	MYTIME t;
+
+	if (NULL == timer)
+	{
+		return;
+	}
+
 	GetDateTime(&t);
 	getTimeval(&now,  t);
 	interval.tv_sec=timeout / 1000;
@@ -176,6 +194,12 @@ void countdown(St_Timer* timer, unsigned int timeout)
 {
 	 timeval now ,interval;
 	MYTIME t;
+
+	if (NULL == timer)
+	{
+		return;
+	}
+
 	GetDateTime(&t);
 	getTimeval(&now,  t);
 	interval.tv_sec=timeout;
@@ -188,6 +212,12 @@ int left_ms(St_Timer* timer)
 {
 	 timeval now, res;
 	MYTIME t;
+
+	if (NULL == timer)
+	{
+		return 0;
+	}
+
 	GetDateTime(&t);
 	getTimeval(&now,  t);
 	timersub(&timer->end_time, &now, &res);
@@ -200,6 +230,12 @@ int left_ms(St_Timer* timer)
 void InitTimer(St_Timer* timer)
 {
 	 timeval interval;
+
+	 if (NULL == timer)
+	 {
+		 return;
+	 }
+
 	interval.tv_sec=0;
 	interval.tv_usec=0;
 	timer->end_time = interval;

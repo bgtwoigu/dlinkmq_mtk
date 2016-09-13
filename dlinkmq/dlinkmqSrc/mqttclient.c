@@ -85,6 +85,9 @@ void MQTTClient(Client* c, Network* network, unsigned int command_timeout_ms, un
     c->ping_outstanding = 0;
     c->defaultMessageHandler = NULL;
     InitTimer(&c->ping_timer);
+
+	c->fnPingTimeout = NULL;
+	c->fnReadTimeout = NULL;
 }
 
 typedef enum{readStatusReady,readStatusDecodingPacket,readStatusReading} readStatus;
@@ -737,6 +740,7 @@ static const kal_uint32 readEventTimeoutInteval = 800;
 static kal_timerid readEventTimer = NULL;
 
 
+extern we_void dlinkmq_client_reconn_timer(we_uint8 start);
 
 
 
@@ -763,7 +767,7 @@ static void readEventFinish(kal_bool isTimeout){
 	}
 	#endif
 
-	dlinkmq_httpconn_timer(0);
+	dlinkmq_client_reconn_timer(0);
 
     cb = currentReadEvent->cb;
 
@@ -842,10 +846,31 @@ static void readEventTimeout(void * timerData){
 
 
 }
+
+static void readEventTimeoutCB(int ret,void *data)
+{
+
+	mqtt_fmt_print("---mqtt readEventTimeout readEventTimeout");
+	//readEventTimer = NULL;
+	if (!currentReadEvent) {
+
+		mqtt_fmt_print("---mqtt readEventTimeout currentReadEvent is NULL");
+		return;
+	}
+
+	currentReadEvent->result = FAILURE;
+	
+	mqtt_fmt_print("---mqtt readEventTimeout before readEventFinish");
+	readEventFinish(KAL_TRUE);
+	mqtt_fmt_print("---mqtt readEventTimeout after readEventFinish");
+
+
+}
+
 static int tmpCount=0;
 static void readEventDoNext(void){
-    int rc;
-	Client *c;
+    int rc = -1;
+	Client *c = NULL;
 	mqtt_fmt_print("---mqtt readEventDoNext");
     if (!currentReadEvent) {
         return;
@@ -922,7 +947,9 @@ static void asyncRead(Client *c,unsigned char *buffer,int len,int timeout_ms,MQT
 mqtt_fmt_print("---mqtt kal_set_timer readEventTimer");
 	//kal_set_timer(readEventTimer,readEventTimeout,NULL,kal_milli_secs_to_ticks(readEventTimeoutInteval),0);
 
-  dlinkmq_httpconn_timer(1);
+  dlinkmq_client_reconn_timer(1);
+
+	c->fnReadTimeout = readEventTimeoutCB;
 	
     readEventDoNext();
 }
@@ -1149,26 +1176,48 @@ void cbAsyncKeepAlive(int result,void *data){
     
     
 }
-void dlinkmq_ping_timeout(void);
-static kal_timerid ping_timeout_timer;
-static void ping_timer_timeout(void *data){
+extern void dlinkmq_ping_timeout(void);
+//static kal_timerid ping_timeout_timer;
+extern we_void dlinkmq_ping_conn_timer(we_uint8 start, kal_uint32 in_time);
+
+static void ping_timer_timeout(int ret, void *data){
 	//printf("\nPING TIMEOUT!!!\n");
 	dlinkmq_ping_timeout();
 }
 
 static void ping_timer_dispose(void){
+
+	#if 0
 	if(ping_timeout_timer){
 		kal_cancel_timer(ping_timeout_timer);
 	}
+	#else
+	dlinkmq_ping_conn_timer(0, 0);
+	#endif
 }
 
-static void ping_timer_init(kal_uint32 ms){
+static void ping_timer_init(Client *pstClient,  kal_uint32 ms){
+
 	ping_timer_dispose();
+
+
+	if (NULL == pstClient)
+	{
+		return;
+	}
+
+	#if 0
 	if(ping_timeout_timer == NULL){
 		ping_timeout_timer = kal_create_timer("PingTimeoutTimer");
 	}
 	
 	kal_set_timer(ping_timeout_timer,ping_timer_timeout,NULL,kal_milli_secs_to_ticks(ms),0);
+	#else
+	dlinkmq_ping_conn_timer(1, ms);
+
+	pstClient->fnPingTimeout = ping_timer_timeout;
+	
+	#endif
 }
 
 
@@ -1221,7 +1270,7 @@ void asyncKeepAlive(Client *c,MQTTAsyncCallbackFunc cb){
 
 		mqtt_fmt_print("\n---mqtt ping client");
 		c->ping_outstanding = 1;
-		ping_timer_init(c->keepAliveInterval / 2);
+		ping_timer_init(c, c->keepAliveInterval / 2);
 		asyncSendPacket(c, len, &timer, cbAsyncKeepAlive);
 		//mqtt_fmt_print("\n- 2.5--05");
         return;
