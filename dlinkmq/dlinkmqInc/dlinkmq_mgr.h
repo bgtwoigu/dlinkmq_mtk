@@ -6,6 +6,7 @@
 #include "MQTTClient.h"
 #include "dlinkmq_http.h"
 #include "dlinkmq_mqtt.h"
+#include "dlinkmq_upload.h"
 #include "dlinkmq_msg.h"
 
 
@@ -36,6 +37,8 @@ typedef struct tagSt_DlinkmqMgr
 	St_DlinkmqHttp *pstDlinkmqHttp;
 
 	St_DlinkmqMqtt *pstDlinkmqMqtt;
+
+	St_DlinkmqUpload*pstDlinkmqUpload;
 	
 	dlinkmq_device_info stDeviceInfo;
 	dlinkmq_on_receive stRecvFunCB;
@@ -68,6 +71,7 @@ St_DlinkmqMqtt  * DlinkmqMgr_GetMqtt(we_handle hDlinkmqMgrHandle);
 
 St_DlinkmqHttp  * DlinkmqMgr_GetHttp(we_handle hDlinkmqMgrHandle);
 
+St_DlinkmqUpload* DlinkmqMgr_GetUpload(we_handle hDlinkmqMgrHandle);
 
 
 #endif /* dlinkmq_mgr_h */

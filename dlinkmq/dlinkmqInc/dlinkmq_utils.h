@@ -18,9 +18,11 @@
 #define MQTT_STACK_HTTP_CONNECT_TIMEROUT_ID    (149)
 #define MQTT_STACK_CLIENT_CONNECT_TIMEROUT_ID    (150)
 #define MQTT_STACK_PING_CONNECT_TIMEROUT_ID    (151)
+#define MQTT_STACK_UPLOAD_CONNECT_TIMEROUT_ID    (152)
 
 
 #define WE_SOCKET_MAX_TCP_RECV_BUFFER_SIZE 4096
+#define WE_SOCKET_MAX_UPLOAD_BUFFER_SIZE 1024
 
 #define DLINKMQ_MQTT_COMMAND_TIMEOUT 100000
 #define DLINKMQ_MQTT_READBUF_SIZE 256
@@ -33,5 +35,6 @@ typedef void(*MQTTAsyncCallbackFunc)(int result, void * data);
 
 we_int32 dlinkmq_data_A_To_B(we_int8 *data, we_int32 indexA, we_int32 A, we_int32 B, we_int8 *out_data);
 
+int char_in_string(char * p,char ch);
 
 #endif /* dlinkmq_utils_h */

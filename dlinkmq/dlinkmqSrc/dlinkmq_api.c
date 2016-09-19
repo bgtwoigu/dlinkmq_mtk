@@ -50,9 +50,10 @@ static stack_timer_struct g_mqtt_task_stack_init_timer;
 static stack_timer_struct g_mqtt_task_stack_reconnect_timer;
 static stack_timer_struct g_mqtt_task_stack_ping_timer;
 static stack_timer_struct g_mqtt_task_stack_http_connect_timer;
+static stack_timer_struct g_mqtt_task_stack_upload_connect_timer;
 static stack_timer_struct g_mqtt_task_stack_client_connect_timer;
 
-static int tryReconnect = 0;
+//static int tryReconnect = 0;
 
 
 Network g_upload_net;
@@ -137,6 +138,7 @@ static we_void dlinkmq_init_timmer()
 	stack_init_timer(&g_mqtt_task_stack_http_connect_timer,"MQTT HTTP Connect Timer",MOD_MQTT);
 	stack_init_timer(&g_mqtt_task_stack_client_connect_timer,"MQTT Client Connect Timer",MOD_MQTT);
 	stack_init_timer(&g_mqtt_task_stack_ping_timer,"MQTT Ping Connect Timer",MOD_MQTT);
+	stack_init_timer(&g_mqtt_task_stack_upload_connect_timer,"MQTT Upload Connect Timer",MOD_MQTT);
 	
 }
 
@@ -151,6 +153,20 @@ we_void dlinkmq_httpconn_timer(we_uint8 start)
 
 		mqtt_fmt_print("---mqtt dlinkmq_httpconn_timer stack_stop_timer");
 		stack_stop_timer(&g_mqtt_task_stack_http_connect_timer);
+	}
+}
+
+we_void dlinkmq_upload_conn_timer(we_uint8 start)
+{
+	mqtt_fmt_print("---upload dlinkmq_upload_conn_timer  sart = %d", start);
+	if(start){
+
+		mqtt_fmt_print("---upload dlinkmq_upload_conn_timer   stack_start_timer");
+		stack_start_timer(&g_mqtt_task_stack_upload_connect_timer, MQTT_STACK_UPLOAD_CONNECT_TIMEROUT_ID, KAL_TICKS_1_MIN);
+	}else{
+
+		mqtt_fmt_print("---upload dlinkmq_upload_conn_timer  stack_stop_timer");
+		stack_stop_timer(&g_mqtt_task_stack_upload_connect_timer);
 	}
 }
 
@@ -545,7 +561,7 @@ static int dlinkmq_cb_msg_gethostbyname(app_soc_get_host_by_name_ind_struct *dns
 
 						mqtt_fmt_print("\n--MQTT_STACK_RECONNECT_TIMER_ID start");
 
-						tryReconnect = 0;
+						//tryReconnect = 0;
 						mqtt_reconnect();
 					} else if (MQTT_STACK_HTTP_CONNECT_TIMEROUT_ID == pStackTimerInfo->timer_indx) {
 
@@ -584,6 +600,14 @@ static int dlinkmq_cb_msg_gethostbyname(app_soc_get_host_by_name_ind_struct *dns
 						{
 							pstClient->fnPingTimeout(0, NULL);
 						}
+					}
+					else if (MQTT_STACK_UPLOAD_CONNECT_TIMEROUT_ID == pStackTimerInfo->timer_indx) {
+
+						//ÖØÁ¬UPLOAD
+						
+						mqtt_fmt_print("---MQTT_STACK_UPLOAD&MQTT_STACK_UPLOAD_CONNECT_TIMEROUT_ID upload timeout-----");
+						DlinkmqMsg_PostMsg(g_pstDlinkmqMsgHandle, E_MQ_MSG_MODULEID_UPLOAD, E_MQ_MSG_EVENTID_NEW_UPLOAD, 0, 0, 0, 0, NULL, NULL);
+						
 					}		
 					else
 					{
@@ -613,6 +637,10 @@ static int dlinkmq_cb_msg_gethostbyname(app_soc_get_host_by_name_ind_struct *dns
 			MQTTAsyncCallbackFunc cb;
 			int result;
 			void *data;
+			St_DlinkmqMqtt *pstMqtt = DlinkmqMgr_GetMqtt(g_pstDlinkmqMgr);
+
+			
+
 			if (msg != NULL){
 				cb = msg->cb;
 				result = msg->result;
@@ -620,6 +648,17 @@ static int dlinkmq_cb_msg_gethostbyname(app_soc_get_host_by_name_ind_struct *dns
 				free_local_para(ilm_ptr->local_para_ptr);
 				ilm_ptr->local_para_ptr = NULL;
 				if(cb){
+
+					if (pstMqtt 
+						&&(pstMqtt->mqttStatus == MQTT_STATUS_RECONN
+						|| pstMqtt->mqttStatus == MQTT_STATUS_DESTROY))
+					{
+						if (cb != pstMqtt->pFnReconn)
+						{
+							return;
+						}
+
+					}
 					cb(result,data);
 				}
 			}
@@ -714,23 +753,21 @@ void handleMessage(MessageData* md){
 	//dlinkmq_parse_payload("#510200fd000611");
 }
 
-static int connectRetryCount = 0;
 
 static void mqtt_reconnect(void){
 	
 
 	St_DlinkmqMqtt *pstMqtt = DlinkmqMgr_GetMqtt(g_pstDlinkmqMgr);
 
-	mqtt_fmt_print("\n------connect retry count :%d\n",connectRetryCount);
+	mqtt_fmt_print("\n---mqtt connect retry");
 
 	if (pstMqtt && pstMqtt->pstNetWork)
 	{
-		connectRetryCount++;
 		//pstMqtt->pstNetWork->disconnect(pstMqtt->pstNetWork);	
 		mqtt_service_start(); 
 		//mqtt_service_connect();
 		mqtt_service_set_reconnect_timer(1);
-		tryReconnect = 1;
+		//tryReconnect = 1;
 	}
 
 	
@@ -775,12 +812,12 @@ void cbconn(int result,void *data){
 	
 	if(result==0){
 		mqtt_service_set_reconnect_timer(0);
-		connectRetryCount = 0;
-		tryReconnect = 0;
+		//connectRetryCount = 0;
+		//tryReconnect = 0;
 		MQTTAsyncSubscribe(pstClient, pstMqttSubPub->pcSubTopic, QOS1,handleMessage,cbSubscribe);
 
-	}else if (!tryReconnect){
-		
+	}else {
+	
 		mqtt_reconnect();
 	}
 
@@ -1103,39 +1140,7 @@ static int cb_post_data(const char *json_data ,dlinkmq_ext_callback cb) {
     return ret;
 }
 
-static U16 mmi_asc_to_ucs2(S8 *pOutBuffer, S8 *pInBuffer)
-{
-	/*----------------------------------------------------------------*/
-	/* Local Variables                                                */
-	/*----------------------------------------------------------------*/
-	S16 count = -1;
 
-	/*----------------------------------------------------------------*/
-	/* Code Body                                                      */
-	/*----------------------------------------------------------------*/
-	while (*pInBuffer != '\0')
-	{
-		pOutBuffer[++count] = *pInBuffer;
-		pOutBuffer[++count] = 0;
-		pInBuffer++;
-	}
-
-	pOutBuffer[++count] = '\0';
-	pOutBuffer[++count] = '\0';
-	return count + 1;
-}
-int char_in_string(char * p,char ch)
-{
-	char * q = p;
-	while(* q != '\0')
-	{
-		if(ch == * q)
-			return 0;
-
-		q++;
-	}
-	return -1;
-}
 int http_post_data(char *hostname, int port, char *path, char *file_path, dlinkmq_ext_callback cb) {
 	
     int ret = -1;
@@ -1317,8 +1322,8 @@ int http_send_buf(){
 }
 int http_recv_buf(){
 	int ret=0;
-	char *tempb;
 #if 0
+	char *tempb;
 	if (g_dmq_client.mqttstatus==MQTT_STATUS_INIT){
 		ret = soc_recv(n_for_http.my_socket, &soc_buf.buf, 600,0);
 	}
@@ -1356,7 +1361,27 @@ int http_recv_buf(){
 
 we_int32 dlinkmq_upload(char* file_path, dlinkmq_ext_callback cb)
 {
-    int ret= 0;
+    int ret= DlinkMQ_ERROR_CODE_FAIL;
+
+
+	#if 1
+	
+	St_DlinkmqUpload*pstUpload = DlinkmqMgr_GetUpload(g_pstDlinkmqMgr);
+	
+	if(!file_path || !&cb || !pstUpload)
+	{
+		return ret;
+	}
+	
+	ret = DlinkmqUpload_AddUploadParams((we_handle)pstUpload, file_path, cb);
+	if(ret != DlinkMQ_ERROR_CODE_SUCCESS){
+		return ret;
+	}
+	
+	DlinkmqMsg_PostMsg(g_pstDlinkmqMsgHandle, E_MQ_MSG_MODULEID_UPLOAD, E_MQ_MSG_EVENTID_NEW_UPLOAD, 0, 0, 0, 0, NULL, NULL);
+
+
+	#else
 	char path[]="/oss/uploadPublic";
 	char upload_head[] =
 		"POST %s HTTP/1.1\r\n"
@@ -1416,6 +1441,7 @@ we_int32 dlinkmq_upload(char* file_path, dlinkmq_ext_callback cb)
 		NewNetwork(&g_upload_net ,dispatchEvents);
 		ret=ConnectNetwork(&g_upload_net, upload_host, upload_port);
 	}
+	#endif
 	
     return ret;
 }

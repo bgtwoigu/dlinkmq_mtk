@@ -31,3 +31,16 @@ we_int32 dlinkmq_data_A_To_B(we_int8 *data, we_int32 indexA, we_int32 A, we_int3
 	}
 	return ret;
 }
+
+int char_in_string(char * p,char ch)
+{
+	char * q = p;
+	while(* q != '\0')
+	{
+		if(ch == * q)
+			return 0;
+
+		q++;
+	}
+	return -1;
+}

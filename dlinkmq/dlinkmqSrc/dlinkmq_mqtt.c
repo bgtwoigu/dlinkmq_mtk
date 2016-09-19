@@ -19,6 +19,7 @@ extern we_void dlinkmq_ping_conn_timer(we_uint8 start, kal_uint32 in_time);
 extern we_void dlinkmq_client_reconn_timer(we_uint8 start);
 
 static void FN_MQTTAsyncConnect_CB(int result,void *data);
+extern we_void DlinkmqMsg_RunMsg(int result, we_void *data);
 
 static we_int32 DlinkmqMqtt_Process(we_handle hDlinkmqMqttHandle, St_MQMsg *pstMsg)
 {
@@ -66,6 +67,7 @@ we_int DlinkmqMqtt_Init(we_handle *phDlinkmqMqttHandle)
 	DlinkmqMsg_RegisterProcess(g_pstDlinkmqMsgHandle, E_MQ_MSG_MODULEID_MQTT, DlinkmqMqtt_Process, (we_handle)pstMqtt);
 
 	pstMqtt->mqttStatus = MQTT_STATUS_INIT;
+	pstMqtt->pFnReconn = (we_void *)DlinkmqMsg_RunMsg;
 
 	ret = DlinkMQ_ERROR_CODE_SUCCESS;
 
@@ -158,6 +160,7 @@ we_int DlinkmqMqtt_ConnectNetWork(we_handle hDlinkmqMqttHandle)
 we_void DlinkmqMqtt_DestroyNetwork(we_handle hDlinkmqMqttHandle, we_bool isReconnect)
 {
 	St_DlinkmqMqtt *pstMqtt = (St_DlinkmqMqtt *)hDlinkmqMqttHandle;
+	Client *pstClient = DlinkmqMgr_GetClient(g_pstDlinkmqMgr);
 
 
 	if(pstMqtt == NULL)
@@ -176,6 +179,8 @@ we_void DlinkmqMqtt_DestroyNetwork(we_handle hDlinkmqMqttHandle, we_bool isRecon
 	DlinkmqNetwork_Destroy(pstMqtt->pstNetWork);
 
 	pstMqtt->pstNetWork = NULL;
+
+	DlinkmqClient_DestroyMqttAll(pstClient);
 
 	DLINKMQ_FREE(pstMqtt->pcMqttBuf);
 	DLINKMQ_FREE(pstMqtt->pcMqttReadBuf);

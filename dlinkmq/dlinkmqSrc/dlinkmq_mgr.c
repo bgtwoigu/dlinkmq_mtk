@@ -53,6 +53,7 @@ we_int DlinkmqMgr_Init(we_handle *phDlinkmqMgrHandle)
 	ret = DlinkmqClient_Init((we_handle *)(&pstMgr->pstMqClient));
 	ret = DlinkmqHttp_Init((we_handle *)(&pstMgr->pstDlinkmqHttp));
 	ret = DlinkmqMqtt_Init((we_handle *)(&pstMgr->pstDlinkmqMqtt));
+	ret = DlinkmqUpload_Init((we_handle *)(&pstMgr->pstDlinkmqUpload));
 
 	*phDlinkmqMgrHandle = pstMgr;
 
@@ -138,6 +139,12 @@ E_DlinkmqMsgModuleId DlinkmqMgr_GetEventIdBySockId(we_handle hDlinkmqMgrHandle, 
 		&& pstMgr->pstDlinkmqMqtt->pstNetWork->my_socket == sockId)
 	{
 		moduleId = E_MQ_MSG_MODULEID_MQTT;
+	}
+	else if (pstMgr->pstDlinkmqUpload 
+		&& pstMgr->pstDlinkmqUpload->pstNetWork
+		&& pstMgr->pstDlinkmqUpload->pstNetWork->my_socket == sockId)
+	{
+		moduleId = E_MQ_MSG_MODULEID_UPLOAD;
 	}
 
 	return moduleId;
@@ -320,3 +327,16 @@ St_DlinkmqHttp  * DlinkmqMgr_GetHttp(we_handle hDlinkmqMgrHandle)
 
 	return pstMgr->pstDlinkmqHttp;
 }
+
+St_DlinkmqUpload* DlinkmqMgr_GetUpload(we_handle hDlinkmqMgrHandle)
+{
+	St_DlinkmqMgr *pstMgr = (St_DlinkmqMgr *)hDlinkmqMgrHandle;
+
+	if (pstMgr == NULL)
+	{
+		return NULL;
+	}
+
+	return pstMgr->pstDlinkmqUpload;
+}
+

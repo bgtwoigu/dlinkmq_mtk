@@ -14,6 +14,8 @@ typedef struct tagSt_DlinkmqMqtt
 
 	we_int mqttStatus;
 
+	we_void *pFnReconn;
+
 }St_DlinkmqMqtt, *P_St_DlinkmqMqtt;
 
 we_int DlinkmqMqtt_Init(we_handle *phDlinkmqMqttHandle);

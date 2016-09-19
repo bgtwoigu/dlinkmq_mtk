@@ -661,6 +661,7 @@ static void sendEventFinish(int result){
     currentSendingEvent = NULL;
 
 	if(cb){
+		mqtt_fmt_print("---sendEventFinish-mqtt_cb_exec:%d",result);
 		mqtt_cb_exec(cb,result);
 	}
     
@@ -986,6 +987,7 @@ static void decodeEventFinish(void){
 
     if (cb)
     {
+		mqtt_fmt_print("---decodeEventFinish-mqtt_cb_exec:%d",result);
         mqtt_cb_exec(cb,result);
 		return;
 
@@ -1076,6 +1078,7 @@ static void readPacketEventFinish(void){
     DLINKMQ_FREE(currentReadPacketEvent);
     currentReadPacketEvent = NULL;
     if(cb){
+		mqtt_fmt_print("---readPacketEventFinish-mqtt_cb_exec:%d",result);
         mqtt_cb_exec(cb,result);
     }
 }
@@ -1122,6 +1125,7 @@ static void cbAsyncReadPacketStep1(int result,void *data){
 void asyncReadPacket(Client *c,St_Timer *timer,MQTTAsyncCallbackFunc cb){
     if (currentReadPacketEvent){
         if (cb) {
+		mqtt_fmt_print("---asyncReadPacket-mqtt_cb_exec:%d",FAILURE);
             mqtt_cb_exec(cb,FAILURE);
         }
         return ;
@@ -1240,9 +1244,9 @@ void asyncKeepAlive(Client *c,MQTTAsyncCallbackFunc cb){
 	currentTime_ms = kal_ticks_to_milli_secs(ticks);
 
 	sentInteval = currentTime_ms - lastSentTime_ms;
-	//tmp = sentInteval - c->keepAliveInterval;
+	tmp = sentInteval - c->keepAliveInterval;
 
-	tmp = sentInteval - 100;
+	//tmp = sentInteval - 100;
 	
 	if(tmp >= 0){
 		shouldPing = 1;
@@ -1309,7 +1313,7 @@ void cycleFinish(int ignored,void* data){
     currentCycle = NULL;
     if (cb)
     {
-		//printf("\nCYCLE finish with result:%d\n",result);
+	mqtt_fmt_print("---cycleFinish-mqtt_cb_exec:%d",result);
         mqtt_cb_exec(cb,result);
     }
     
@@ -1425,6 +1429,7 @@ void cyclePacketTypeDispatch(int packet_type,void* data){
 
 void asyncCycle(Client* c, St_Timer* timer,MQTTAsyncCallbackFunc cb){
     if (currentCycle) {
+	mqtt_fmt_print("---currentCycle-mqtt_cb_exec:-1");
         mqtt_cb_exec(cb,FAILURE);
         return;
     }
@@ -1455,6 +1460,7 @@ void waitFinish(int result){
     DLINKMQ_FREE(currentWaitEvent);
     currentWaitEvent = NULL;
     if(cb){
+	mqtt_fmt_print("---waitFinish-mqtt_cb_exec:%d",result);
         mqtt_cb_exec(cb,result);
     }
 }
@@ -1483,6 +1489,7 @@ void waitNext(int result,void *data){
 void asyncWaitFor(Client* c, int packet_type, St_Timer* timer,MQTTAsyncCallbackFunc cb){
     if (currentWaitEvent) {
         if (cb) {
+		mqtt_fmt_print("---asyncWaitFor-mqtt_cb_exec:-1");
             mqtt_cb_exec(cb,FAILURE);
         }
         return;
@@ -1518,6 +1525,7 @@ void MQTTYieldEventFinish(result){
     DLINKMQ_FREE(currentYieldEvent);
     currentYieldEvent = NULL;
     if (cb) {
+		mqtt_fmt_print("---MQTTYieldEventFinish-mqtt_cb_exec:%d",result);
         mqtt_cb_exec(cb,result);
     }
 }
@@ -1545,6 +1553,7 @@ void MQTTYieldEventDoNext(int result,void* data){
 void MQTTAsyncYield(Client* c, int timeout_ms,MQTTAsyncCallbackFunc cb){
     if (currentYieldEvent) {
         if (cb) {
+		mqtt_fmt_print("---MQTTAsyncYield-mqtt_cb_exec:-1");
             mqtt_cb_exec(cb,FAILURE);
         }
         return;
@@ -1585,6 +1594,7 @@ void MQTTAsyncConnectFinish(int result){
     DLINKMQ_FREE(currentConnectAction);
     currentConnectAction = NULL;
     if (cb) {
+		mqtt_fmt_print("---MQTTAsyncConnectFinish-mqtt_cb_exec:%d",result);
         mqtt_cb_exec(cb,result);
     }
 }
@@ -1624,6 +1634,7 @@ void MQTTAsyncConnect(Client *c, MQTTPacket_connectData* options,MQTTAsyncCallba
     int len = 0;
 	if( !c || c->isconnected){
 		if (cb) {
+		mqtt_fmt_print("---MQTTAsyncConnect-mqtt_cb_exec1:%d",FAILURE);
             mqtt_cb_exec(cb,FAILURE);
         }
         return;
@@ -1646,6 +1657,7 @@ void MQTTAsyncConnect(Client *c, MQTTPacket_connectData* options,MQTTAsyncCallba
     countdown(&c->ping_timer, c->keepAliveInterval);
     if ((len = MQTTSerialize_connect(c->buf, c->buf_size, options)) <= 0){
         if (cb) {
+		mqtt_fmt_print("---MQTTAsyncConnect-mqtt_cb_exec2:%d",FAILURE);
             mqtt_cb_exec(cb,FAILURE);
         }
         return;
@@ -1681,6 +1693,7 @@ void MQTTAsyncSubscribeFinish(int result){
     DLINKMQ_FREE(currentSubscribeAction);
     currentSubscribeAction = NULL;
     if (cb) {
+		mqtt_fmt_print("---MQTTAsyncSubscribeFinish-mqtt_cb_exec:%d",result);
         mqtt_cb_exec(cb,result);
     }
 }
@@ -1738,6 +1751,7 @@ void MQTTAsyncSubscribe(Client* c, const char* topicFilter, enum QoS qos, messag
     MQTTString topic = MQTTString_initializer;
     if (currentSubscribeAction || !c->isconnected) {
         if (cb) {
+		mqtt_fmt_print("---MQTTAsyncSubscribe-mqtt_cb_exec1:%d",FAILURE);
             mqtt_cb_exec(cb,FAILURE);
         }
         return;
@@ -1755,6 +1769,7 @@ void MQTTAsyncSubscribe(Client* c, const char* topicFilter, enum QoS qos, messag
     len = MQTTSerialize_subscribe(c->buf, c->buf_size, 0, getNextPacketId(c), 1, &topic, (int*)&qos);
     if (len <= 0) {
         if (cb) {
+		mqtt_fmt_print("---MQTTAsyncSubscribe-mqtt_cb_exec2:%d",FAILURE);
             mqtt_cb_exec(cb,FAILURE);
         }
         return;
@@ -1785,6 +1800,7 @@ void MQTTAsyncUnsubscribeFinish(int result){
     DLINKMQ_FREE(currentUnsubscribeAction);
     currentUnsubscribeAction = NULL;
     if (cb) {
+		mqtt_fmt_print("---MQTTAsyncUnsubscribeFinish-mqtt_cb_exec:%d",result);
         mqtt_cb_exec(cb,result);
     }
 }
@@ -1824,6 +1840,7 @@ void MQTTAsyncUnsubscribe(Client* c, const char* topicFilter,MQTTAsyncCallbackFu
     int len = 0;
     if (currentUnsubscribeAction || !c->isconnected) {
         if (cb) {
+		mqtt_fmt_print("---MQTTAsyncUnsubscribe-mqtt_cb_exec1:%d",FAILURE);
             mqtt_cb_exec(cb,FAILURE);
         }
         return;
@@ -1838,6 +1855,7 @@ void MQTTAsyncUnsubscribe(Client* c, const char* topicFilter,MQTTAsyncCallbackFu
     len = MQTTSerialize_unsubscribe(c->buf, c->buf_size, 0, getNextPacketId(c), 1, &topic);
     if (len <= 0) {
         if (cb) {
+		mqtt_fmt_print("---MQTTAsyncUnsubscribe-mqtt_cb_exec2:%d",FAILURE);
             mqtt_cb_exec(cb,FAILURE);
         }
         return;
@@ -1870,6 +1888,7 @@ void MQTTAsyncPublishFinish(int result){
     currentPublishAction = NULL;
     if (cb) {
         //mqtt_cb_exec(cb,result);
+		mqtt_fmt_print("---MQTTAsyncPublishFinish-mqtt_cb_exec:%d",result);
 		mqtt_cb_exec_with_data(cb,result,msg);
 		//cb(result,msg);
     }
@@ -1938,6 +1957,7 @@ void MQTTAsyncPublish(Client* c, const char* topicName, MQTTMessage* message,MQT
     if(len <= 0){
         if (cb) {
             //mqtt_cb_exec(cb,FAILURE);
+		mqtt_fmt_print("---MQTTAsyncPublish-mqtt_cb_exec:%d",FAILURE);
             mqtt_cb_exec_with_data(cb,FAILURE,message);
         }
         return;
@@ -1982,6 +2002,7 @@ void MQTTAsyncDisconnect(Client *c,MQTTAsyncCallbackFunc cb){
     St_Timer timer;
     if (currentDisconnectAction) {
         if (cb) {
+		mqtt_fmt_print("---MQTTAsyncDisconnect-mqtt_cb_exec1:%d",FAILURE);
             mqtt_cb_exec(cb,FAILURE);
         }
         return;
@@ -1997,6 +2018,7 @@ void MQTTAsyncDisconnect(Client *c,MQTTAsyncCallbackFunc cb){
         asyncSendPacket(c, len, &timer, MQTTAsyncDisconnectSendPacketCheck);
     }else{
         if (cb) {
+		mqtt_fmt_print("---MQTTAsyncDisconnect-mqtt_cb_exec2:%d",FAILURE);
             mqtt_cb_exec(cb,FAILURE);
         }
     }
@@ -2034,3 +2056,82 @@ we_void DlinkmqClient_Destroy(we_handle hDlinkmqClientHandle)
 		DLINKMQ_FREE(pstClient);
 	}
 }
+
+we_void DlinkmqClient_DestroyMqttAll(we_handle hDlinkmqClientHandle)
+{
+	Client *pstClient = (Client *)hDlinkmqClientHandle;
+
+	if(pstClient != NULL) 
+	{
+		currentReadStatus = readStatusReady;
+		lastSentTime_ms = 0;
+
+		if (currentYieldEvent)
+		{
+			DLINKMQ_FREE(currentYieldEvent->timer);
+    		DLINKMQ_FREE(currentYieldEvent);
+		}
+
+		if (currentWaitEvent)
+		{
+			DLINKMQ_FREE(currentWaitEvent);
+		}
+	
+		if (currentCycle)
+		{
+			DLINKMQ_FREE(currentCycle);
+		}
+
+		if (currentReadPacketEvent)
+		{
+			DLINKMQ_FREE(currentReadPacketEvent->header);
+			DLINKMQ_FREE(currentReadPacketEvent);
+		}
+
+		if (currentDecodeEvent)
+		{
+			DLINKMQ_FREE(currentDecodeEvent->timer);
+			DLINKMQ_FREE(currentDecodeEvent);
+		}
+
+		if (currentReadEvent)
+		{
+			DLINKMQ_FREE(currentReadEvent->timer);	
+			DLINKMQ_FREE(currentReadEvent);
+		}
+
+		if (currentSendingEvent)
+		{
+			DLINKMQ_FREE(currentSendingEvent);
+		}
+	
+		if (currentConnectAction)
+		{
+			DLINKMQ_FREE(currentConnectAction->connectTimer);
+			DLINKMQ_FREE(currentConnectAction);
+		}
+
+		if (currentSubscribeAction)
+		{
+			DLINKMQ_FREE(currentSubscribeAction->subscribeTimer);
+			DLINKMQ_FREE(currentSubscribeAction);
+		}
+
+		if(currentUnsubscribeAction)
+		{
+			DLINKMQ_FREE(currentUnsubscribeAction->unsubscribeTimer);
+    		DLINKMQ_FREE(currentUnsubscribeAction);
+		}
+
+	
+		if(currentPublishAction)
+		{
+			DLINKMQ_FREE(currentPublishAction->publishTimer);
+   			DLINKMQ_FREE(currentPublishAction);
+		}
+
+		DLINKMQ_FREE(currentDisconnectAction);
+	}
+
+}
+

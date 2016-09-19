@@ -118,6 +118,7 @@ struct Client {
 we_int DlinkmqClient_Init(we_handle *phDlinkmqClientHandle);
 
 we_void DlinkmqClient_Destroy(we_handle hDlinkmqClientHandle);
+we_void DlinkmqClient_DestroyMqttAll(we_handle hDlinkmqClientHandle);
 
 
 
