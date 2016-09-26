@@ -29,7 +29,7 @@
 enum QoS { QOS0, QOS1, QOS2 };
 
 // all failure return codes must be negative
-enum returnCode { BUFFER_OVERFLOW = -2, FAILURE = -1, SUCCESS = 0 };
+enum returnCode { TIMEOUT = -3, BUFFER_OVERFLOW = -2, FAILURE = -1, SUCCESS = 0 };
 enum mqttStatus {
 	MQTT_STATUS_INIT = 0, 
 	MQTT_STATUS_INITING, 

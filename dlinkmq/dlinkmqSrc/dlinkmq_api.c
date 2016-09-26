@@ -312,7 +312,7 @@ static void mqtt_service_set_keepalive_timer(kal_uint8 start)
 {
 	if(start)
 	{
-		stack_start_timer(&g_mqtt_task_stack_timer, MQTT_STACK_TIMER_ID, KAL_TICKS_50_MSEC);//L?5L?paG?TICK,KAL_TICKS_5_SEC
+		stack_start_timer(&g_mqtt_task_stack_timer, MQTT_STACK_TIMER_ID, KAL_TICKS_100_MSEC * 2);//L?5L?paG?TICK,KAL_TICKS_5_SEC
 	}
 	else
 	{
@@ -525,7 +525,7 @@ static int dlinkmq_cb_msg_gethostbyname(app_soc_get_host_by_name_ind_struct *dns
 {
 	if (NULL != ilm_ptr)
 	{
-		//mqtt_fmt_print("\n----------ilm_ptr->msg_id=%d\n",ilm_ptr->msg_id);
+		mqtt_fmt_print("\n--------dlinkmq_run--ilm_ptr->msg_id=%d\n",ilm_ptr->msg_id);
 		switch(ilm_ptr->msg_id)
 		{
 		case MSG_ID_TIMER_EXPIRY:
@@ -534,7 +534,7 @@ static int dlinkmq_cb_msg_gethostbyname(app_soc_get_host_by_name_ind_struct *dns
 				St_DlinkmqMqtt *pstMqtt = DlinkmqMgr_GetMqtt(g_pstDlinkmqMgr);
 				if (NULL != pStackTimerInfo)
 				{
-					//mqtt_fmt_print("\n----------MQTT timer: pStackTimerInfo->timer_indx=%d\n", pStackTimerInfo->timer_indx);
+					mqtt_fmt_print("\n--------dlinkmq_run--MQTT timer: pStackTimerInfo->timer_indx=%d\n", pStackTimerInfo->timer_indx);
 					if (MQTT_STACK_TIMER_ID == pStackTimerInfo->timer_indx)
 					{
 						if (pstMqtt && pstMqtt->mqttStatus == MQTT_STATUS_CONN)
@@ -543,7 +543,7 @@ static int dlinkmq_cb_msg_gethostbyname(app_soc_get_host_by_name_ind_struct *dns
 						} else if (pstMqtt)
 						{
 
-							mqtt_fmt_print("\n----------MQTT timer: MQTT_STACK_TIMER_ID status=%d\n", pstMqtt->mqttStatus);
+							mqtt_fmt_print("\n--------dlinkmq_run--MQTT timer: MQTT_STACK_TIMER_ID status=%d\n", pstMqtt->mqttStatus);
 						}
 						
 					} 
@@ -588,8 +588,11 @@ static int dlinkmq_cb_msg_gethostbyname(app_soc_get_host_by_name_ind_struct *dns
 
 						if(pstClient && pstClient->fnReadTimeout)
 						{
+							mqtt_fmt_print("---mqtt client connect timeout, call readtimeout-----");
 							pstClient->fnReadTimeout(0, NULL);
 						}
+
+						mqtt_fmt_print("---mqtt client connect timeout-----");
 							
 					}
 					else if (MQTT_STACK_PING_CONNECT_TIMEROUT_ID == pStackTimerInfo->timer_indx)
@@ -598,8 +601,10 @@ static int dlinkmq_cb_msg_gethostbyname(app_soc_get_host_by_name_ind_struct *dns
 
 						if(pstClient && pstClient->fnPingTimeout)
 						{
+							mqtt_fmt_print("---mqtt ping connect timeout, call ping timeout-----");
 							pstClient->fnPingTimeout(0, NULL);
 						}
+						mqtt_fmt_print("---mqtt ping connect timeout-----");
 					}
 					else if (MQTT_STACK_UPLOAD_CONNECT_TIMEROUT_ID == pStackTimerInfo->timer_indx) {
 
@@ -697,13 +702,17 @@ void cbYield(int result,void* data){
 	static int minimumYieldInteval = 1000;
 
 	Client *pstClient = DlinkmqMgr_GetClient(g_pstDlinkmqMgr);
+	mqtt_fmt_print("\n--cbYield-result:%d",result);
 	
-	if(toStop){
+	if(toStop)
+	{
 		MQTTAsyncDisconnect(pstClient,NULL);
-	//}else if(result == FAILURE){
-		//mqtt_fmt_print("\n-----------------------------------yield FAIL!\n");
-		//mqtt_service_connect();
-	}else{
+	}
+	else if(result == FAILURE){
+		dlinkmq_service_init();
+	}
+	else
+	{
 		
 		kal_get_time(&ticks);
 		currentTime = kal_ticks_to_milli_secs(ticks);
@@ -712,6 +721,7 @@ void cbYield(int result,void* data){
 		
 		if(inteval < minimumYieldInteval){
 			mqtt_fmt_print("\n---mqtt skip yield!\n");
+			mqtt_service_set_keepalive_timer(0);
 			mqtt_service_set_keepalive_timer(1);
 			return;
 		}
@@ -734,7 +744,7 @@ void cbSubscribe(int result,void *data){
 
 
 	if(result == 0){
-
+		
 		toStop = 0;
 		yieldCount = 0;
 		MQTTAsyncYield(pstClient,100000,cbYield);

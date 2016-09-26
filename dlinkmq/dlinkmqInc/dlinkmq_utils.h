@@ -5,6 +5,8 @@
 #include "string.h"
 #include "stdlib.h"
 
+//#define dotlink_host    "192.168.1.53"
+//#define dotlink_port    4004
 #define dotlink_host    "139.224.11.153"
 #define dotlink_port    4004
 #define dotlink_path    "/mqtt/info"
