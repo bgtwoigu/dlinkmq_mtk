@@ -157,9 +157,12 @@ we_void DlinkmqHttp_DestroyNetwork(we_handle hDlinkmqHttpHandle, we_bool isRecon
 	dlinkmq_httpconn_timer(0);
 
 	DlinkmqNetwork_Destroy(pstHttp->pstNetWork);
-	DLINKMQ_FREE(pstHttp->pSendBuff);
+	if(pstHttp->pSendBuff != NULL)
+	{
+		DLINKMQ_FREE(pstHttp->pSendBuff);
+		pstHttp->pSendBuff = NULL;
+	}
 	pstHttp->pstNetWork = NULL;
-	pstHttp->pSendBuff = NULL;
 	pstHttp->iBuffSize = 0;
 	pstHttp->iSentSize = 0;
 

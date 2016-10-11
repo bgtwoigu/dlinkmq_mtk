@@ -7,6 +7,7 @@
 #include "MQTTMTK.h"
 #include "MQTTTrace.h"
 #include "dlinkmq_msg.h"
+#include "dlinkmq_api.h"
 
 typedef enum tagSt_DlinkmqUpload_Status{
 	DlinkmqUpload_Status_INIT = 0,

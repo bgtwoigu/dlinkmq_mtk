@@ -170,9 +170,9 @@ we_void DlinkmqUpload_DestroyNetwork(we_handle hDlinkmqUploadHandle, we_bool isR
 	if(pstUpload->pSendBuff != NULL)
 	{
 		DLINKMQ_FREE(pstUpload->pSendBuff);
+		pstUpload->pSendBuff = NULL;
 	}
 	pstUpload->pstNetWork = NULL;
-	pstUpload->pSendBuff = NULL;
 	pstUpload->iBuffSize = 0;
 	pstUpload->iSentSize = 0;
 	pstUpload->status = DlinkmqUpload_Status_INIT;
@@ -187,7 +187,7 @@ we_void DlinkmqUpload_DestroyNetwork(we_handle hDlinkmqUploadHandle, we_bool isR
 	if (isReconnect == TRUE)//重连
 	{
 		mqtt_fmt_print("----DlinkmqUpload_DestroyNetwork reconnect");
-		DlinkmqMsg_PostMsg(g_pstDlinkmqMsgHandle, E_MQ_MSG_MODULEID_HTTP, E_MQ_MSG_EVENTID_NEW_HTTP, 0, 0, 0, 0, NULL, NULL);
+		DlinkmqMsg_PostMsg(g_pstDlinkmqMsgHandle, E_MQ_MSG_MODULEID_UPLOAD, E_MQ_MSG_EVENTID_NEW_UPLOAD, 0, 0, 0, 0, NULL, NULL);
 	}
 
 	
@@ -391,6 +391,11 @@ we_void DlinkmqUpload_UploadFile(we_handle hDlinkmqUploadHandle)
 	{
 		DlinkmqUpload_PostBuffToSever(hDlinkmqUploadHandle);
 	}
+	else if (ret == DlinkMQ_ERROR_CODE_PARAM)
+	{
+		mqtt_cb_exec_with_data(pstUpload->paths->cb, ret, NULL);
+		DlinkmqUpload_DeleteUploadParams(hDlinkmqUploadHandle);
+	}
 
 
 }	
@@ -510,6 +515,7 @@ we_int DlinkmqUpload_GetPostHeaders(we_handle hDlinkmqUploadHandle)
 		ret=FS_GetFileSize(pstUpload->file,&file_size);
 		if(file_size<=0){
 			mqtt_fmt_print("\n--DlinkmqUpload_GetPostHeaders-dlinkmq_upload-nofile");
+			FS_Close(pstUpload->file);
 			return DlinkMQ_ERROR_CODE_PARAM;
 		}
 	}
@@ -520,6 +526,7 @@ we_int DlinkmqUpload_GetPostHeaders(we_handle hDlinkmqUploadHandle)
 	
 	pstUpload->pSendBuff = DLINKMQ_MALLOC(WE_SOCKET_MAX_UPLOAD_BUFFER_SIZE);
 	if(pstUpload->pSendBuff == NULL){
+		FS_Close(pstUpload->file);
 		return DlinkMQ_ERROR_CODE_DISK_FULL;
 	}
 	
@@ -536,25 +543,31 @@ we_int DlinkmqUpload_GetPostHeaders(we_handle hDlinkmqUploadHandle)
 we_int DlinkmqUpload_AddUploadParams(we_handle hDlinkmqUploadHandle, we_char* file_path, dlinkmq_ext_callback cb){
 	St_DlinkmqUpload *pstUpload = (St_DlinkmqUpload *)hDlinkmqUploadHandle;
 	we_int ret = DlinkMQ_ERROR_CODE_FAIL;
-	St_DlinkmqUploadPaths*lastPaths = NULL;
-	St_DlinkmqUploadPaths*tempPaths = NULL;
+	St_DlinkmqUploadPaths *lastPaths = NULL;
+	St_DlinkmqUploadPaths *tempPaths = NULL;
 
-	if(char_in_string(file_path, '/')==0){
+	if(char_in_string(file_path, '/') == 0){
 		mqtt_fmt_print("\n---DlinkmqUpload_AddUploadParams-nofile");
 		return DlinkMQ_ERROR_CODE_PARAM;
 	}
 
 	if(pstUpload->paths == NULL){
-		pstUpload->paths = DLINKMQ_MALLOC(sizeof(St_DlinkmqUploadPaths));
-		if(pstUpload->paths == NULL)
+		mqtt_fmt_print("\n---DlinkmqUpload_AddUploadParams-first-start");
+		tempPaths = DLINKMQ_MALLOC(sizeof(St_DlinkmqUploadPaths));
+		mqtt_fmt_print("\n---DlinkmqUpload_AddUploadParams-first--pstUpload->paths malloc");
+		if(tempPaths == NULL)
 		{
+			mqtt_fmt_print("\n---DlinkmqUpload_AddUploadParams-first--DISK_FULL");
 			return DlinkMQ_ERROR_CODE_DISK_FULL;
 		}
 
-		pstUpload->paths->cb = cb;
-		pstUpload->paths->path = file_path;
-		pstUpload->paths->next =NULL;
-		pstUpload->paths->tail = pstUpload->paths;
+		tempPaths->cb = cb;
+		tempPaths->path = file_path;
+		tempPaths->next =NULL;
+		tempPaths->tail = tempPaths;
+		
+		pstUpload->paths = tempPaths;
+		mqtt_fmt_print("\n---DlinkmqUpload_AddUploadParams-first--end");
 	}
 	else{
 		//加到队列尾部
@@ -603,7 +616,7 @@ we_int DlinkmqUpload_AddUploadParams(we_handle hDlinkmqUploadHandle, we_char* fi
 we_int DlinkmqUpload_DeleteUploadParams(we_handle hDlinkmqUploadHandle){
 	St_DlinkmqUpload *pstUpload = (St_DlinkmqUpload *)hDlinkmqUploadHandle;
 	we_int ret = DlinkMQ_ERROR_CODE_FAIL;
-	St_DlinkmqUploadPaths*tempPaths = pstUpload->paths;
+	St_DlinkmqUploadPaths *tempPaths = pstUpload->paths;
 
 	if(pstUpload->paths == NULL){
 		return ret;

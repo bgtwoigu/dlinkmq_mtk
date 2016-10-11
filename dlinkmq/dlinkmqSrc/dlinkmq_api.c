@@ -52,6 +52,7 @@ static stack_timer_struct g_mqtt_task_stack_ping_timer;
 static stack_timer_struct g_mqtt_task_stack_http_connect_timer;
 static stack_timer_struct g_mqtt_task_stack_upload_connect_timer;
 static stack_timer_struct g_mqtt_task_stack_client_connect_timer;
+static stack_timer_struct g_mqtt_task_stack_record_audio_timer;
 
 //static int tryReconnect = 0;
 
@@ -139,9 +140,20 @@ static we_void dlinkmq_init_timmer()
 	stack_init_timer(&g_mqtt_task_stack_client_connect_timer,"MQTT Client Connect Timer",MOD_MQTT);
 	stack_init_timer(&g_mqtt_task_stack_ping_timer,"MQTT Ping Connect Timer",MOD_MQTT);
 	stack_init_timer(&g_mqtt_task_stack_upload_connect_timer,"MQTT Upload Connect Timer",MOD_MQTT);
+	stack_init_timer(&g_mqtt_task_stack_record_audio_timer,"MQTT Audio Record Timer",MOD_MQTT);
 	
 }
+we_void dlinkmq_record_audio_timer(we_uint8 start, kal_uint32 in_time)
+{
+	mqtt_fmt_print("---dlinkmq_record_audio_timer = %d", start);
+	if(start){
 
+		stack_start_timer(&g_mqtt_task_stack_record_audio_timer, MQTT_STACK_RECORD_AUDIO_TIMEROUT_ID, in_time);
+	}else{
+
+		stack_stop_timer(&g_mqtt_task_stack_record_audio_timer);
+	}
+}
 we_void dlinkmq_httpconn_timer(we_uint8 start)
 {
 	mqtt_fmt_print("---mqtt dlinkmq_httpconn_timer  sart = %d", start);
@@ -519,6 +531,7 @@ void cbYield(int result,void *data);
 
 
 static void mqtt_reconnect(void);
+extern void cb_miaoxin_aud_record_upload(void);
 
 static int dlinkmq_cb_msg_gethostbyname(app_soc_get_host_by_name_ind_struct *dns_msg);
  void dlinkmq_run(ilm_struct *ilm_ptr)
@@ -613,7 +626,13 @@ static int dlinkmq_cb_msg_gethostbyname(app_soc_get_host_by_name_ind_struct *dns
 						mqtt_fmt_print("---MQTT_STACK_UPLOAD&MQTT_STACK_UPLOAD_CONNECT_TIMEROUT_ID upload timeout-----");
 						DlinkmqMsg_PostMsg(g_pstDlinkmqMsgHandle, E_MQ_MSG_MODULEID_UPLOAD, E_MQ_MSG_EVENTID_NEW_UPLOAD, 0, 0, 0, 0, NULL, NULL);
 						
-					}		
+					}
+					else if(MQTT_STACK_RECORD_AUDIO_TIMEROUT_ID == pStackTimerInfo->timer_indx){
+						mqtt_fmt_print("---MQTT_STACK_RECORD_AUDIO_TIMEROUT_ID record_audio timeout--");
+
+						cb_miaoxin_aud_record_upload();
+					}
+						
 					else
 					{
 						mqtt_fmt_print("---MQTT timer: other's timer id-----");
@@ -1383,12 +1402,15 @@ we_int32 dlinkmq_upload(char* file_path, dlinkmq_ext_callback cb)
 		return ret;
 	}
 	
+	mqtt_fmt_print("\n---dlinkmq_upload-DlinkmqUpload_AddUploadParams-start");
 	ret = DlinkmqUpload_AddUploadParams((we_handle)pstUpload, file_path, cb);
+	mqtt_fmt_print("---dlinkmq_upload  --DlinkmqUpload_AddUploadParams:%d",ret);
 	if(ret != DlinkMQ_ERROR_CODE_SUCCESS){
 		return ret;
 	}
 	
-	DlinkmqMsg_PostMsg(g_pstDlinkmqMsgHandle, E_MQ_MSG_MODULEID_UPLOAD, E_MQ_MSG_EVENTID_NEW_UPLOAD, 0, 0, 0, 0, NULL, NULL);
+	ret = DlinkmqMsg_PostMsg(g_pstDlinkmqMsgHandle, E_MQ_MSG_MODULEID_UPLOAD, E_MQ_MSG_EVENTID_NEW_UPLOAD, 0, 0, 0, 0, NULL, NULL);
+	mqtt_fmt_print("---dlinkmq_upload  --DlinkmqMsg_PostMsg:%d",ret);
 
 
 	#else

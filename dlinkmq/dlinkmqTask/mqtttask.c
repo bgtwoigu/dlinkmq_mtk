@@ -131,8 +131,17 @@ void datapoint_list_remove_head()
 
 void cb_dlinkmq_upload(we_int32 err_code, void *data){
 	we_int8 *file_info=NULL;
-	printf("\n-------cb_dlinkmq_upload  --result:%d --data:%s",err_code,(we_int8*)data);
-	kal_prompt_trace(MOD_MQTT,"---cb_dlinkmq_upload  --result:%d --data:%s",err_code,(we_int8*)data);
+	if(data != NULL)
+	{
+		printf("\n-------cb_dlinkmq_upload  --result:%d --data:%s",err_code,(we_int8*)data);
+		kal_prompt_trace(MOD_MQTT,"---cb_dlinkmq_upload  --result:%d --data:%s",err_code,(we_int8*)data);
+	}
+	else
+	{
+		printf("\n-------cb_dlinkmq_upload  --result:%d --data:NULL",err_code);
+		kal_prompt_trace(MOD_MQTT,"---cb_dlinkmq_upload  --result:%d --data:NULL",err_code);
+	}
+	
 
 	//上传文件成功，上报音频文件信息
 	if(err_code==DlinkMQ_ERROR_CODE_SUCCESS){
@@ -144,30 +153,60 @@ void cb_dlinkmq_upload(we_int32 err_code, void *data){
 }
 
 void cb_miaoxin_aud_record_and_upload(mdi_result result, void* data){
+	we_int32 ret = 0;
 	printf("\n-------cb_miaoxin_aud_record_and_upload  --result:%d --data:%s",result,(we_int8*)data);
 	kal_prompt_trace(MOD_MQTT,"---cb_miaoxin_aud_record_and_upload  --result:%d  --data:%s",result, (we_int8*)data);
-
+/*
 	if(result==MDI_AUDIO_SUCCESS){
 
 		//上传音频文件到服务器
-		if(dlinkmq_upload("upload\\upload_wav.wav", cb_dlinkmq_upload)==0){
-			//上传接口调用成功
-		}
+		ret = dlinkmq_upload((char *)data, cb_dlinkmq_upload);
+		
+		kal_prompt_trace(MOD_MQTT,"---cb_miaoxin_aud_record_and_upload  --dlinkmq_upload:%d",ret);
 
 	}
+*/
+}
+void cb_miaoxin_aud_record_upload(void){
+	we_int32 ret = 0;
+
+	kal_prompt_trace(MOD_MQTT,"---cb_miaoxin_aud_record_upload");
+	
+	mdi_audio_stop_record();
+	
+	//上传音频文件到服务器
+	ret = dlinkmq_upload("C:\\upload_amr.amr", cb_dlinkmq_upload);
+	kal_prompt_trace(MOD_MQTT,"---cb_miaoxin_aud_record_upload  --dlinkmq_upload:%d",ret);
+
 }
 
+kal_timerid record_timer;
+extern we_void dlinkmq_record_audio_timer(we_uint8 start, kal_uint32 in_time);
+
 void miaoxin_audio_cmd(){
-	WCHAR file_name[]=L"file_name_aud.amr";
+	WCHAR file_name[]=L"upload_amr.amr";
 	we_int32 ret=-1;
 	we_int32 size_limit=20*1024;
-	we_int32 time_limit=settings_info.record_time*KAL_TICKS_1_SEC;
+	we_int32 time_limit;//=settings_info.record_time*KAL_TICKS_1_SEC;
 	mdi_ext_callback cb= cb_miaoxin_aud_record_and_upload;
 	/*
 		录制音频操作，得到音频文件地址
 	*/
+	settings_info.record_time = 15;
+	time_limit = settings_info.record_time;
+	FS_Delete((const WCHAR * )file_name);
 	ret=mdi_audio_start_record_with_limit(file_name,MDI_FORMAT_AMR,0,cb,file_name,size_limit,time_limit);
+	kal_prompt_trace(MOD_MQTT,"---miaoxin_audio_cmd  --mdi_audio_start_record_with_limit:%d",ret);
+	
+	//if(record_timer==NULL){
+	//	record_timer=kal_create_timer("record_timer");
+	//}
+	//kal_set_timer(record_timer, cb_miaoxin_aud_record_upload, NULL, 21*KAL_TICKS_1_SEC, 0);
+	
 	if(ret==MDI_AUDIO_SUCCESS){
+		
+		dlinkmq_record_audio_timer(1, 16*KAL_TICKS_1_SEC );
+		
 		//录音操作成功
 		device_to_server_public(MIAOXIN_CMD_ID_DOWN_AUDIO,(we_void*)DlinkMQ_ERROR_CODE_SUCCESS,DATA_TYPE_BOOL);
 	}
@@ -177,7 +216,6 @@ void miaoxin_audio_cmd(){
 	}
 
 }
-
 
 void upload_location_data(void *timerData){
 	//获取地理位置信息，上报数据
@@ -591,10 +629,10 @@ void on_receive_msg(dlinkmq_datapoint *datapoint){
 		case MIAOXIN_CMD_ID_DOWN_AUDIO:
 
 			//录制音频上传、回复设备操作结果
-			//miaoxin_audio_cmd();
-			device_to_server_public(MIAOXIN_CMD_ID_DOWN_AUDIO,(we_void*)DlinkMQ_ERROR_CODE_SUCCESS,DATA_TYPE_BOOL);
+			miaoxin_audio_cmd();
+			//device_to_server_public(MIAOXIN_CMD_ID_DOWN_AUDIO,(we_void*)DlinkMQ_ERROR_CODE_SUCCESS,DATA_TYPE_BOOL);
 
-			dlinkmq_upload("upload\\upload_amr.amr", cb_dlinkmq_upload);
+			//dlinkmq_upload("upload\\upload_amr.amr", cb_dlinkmq_upload);
 			//device_to_server_public(MIAOXIN_CMD_ID_UP_AUDIO,"57b4255070066a3821556b46,13",DATA_TYPE_STRING);
 
 			break;
@@ -716,8 +754,8 @@ static void mqtt_main(task_entry_struct *task_entry_ptr)
     	kal_get_my_task_index(&my_index);
 	stack_set_active_module_id(my_index, MOD_MQTT);
 	
-
-	strcpy(device_info.device_id,"222222");
+	
+	strcpy(device_info.device_id,"333333");
 	strcpy(device_info.product_id,"b1e57467c92140e299022deb808cdd24");
 	strcpy(device_info.product_secret,"2c15e161b5064d32ba6a6f664fbcde15");
 	//接受消息监听方法
